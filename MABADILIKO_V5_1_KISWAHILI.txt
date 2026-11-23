@@ -1,0 +1,23 @@
+HAWAII ERP V5.1 - MABADILIKO
+
+1. NON-IATA SERVICE CHARGE
+- Admin anaweza kubadilisha kiwango cha TZS na USD kupitia menyu: 13. Settings – NON-IATA Service Charge.
+- Kiwango kilichowekwa kinatumika moja kwa moja kwenye tiketi mpya za NON-IATA.
+- Tiketi za WORKING CLIENT zinaendelea kutumia service charge iliyoingizwa kwenye fomu.
+
+2. ROLES MPYA / ACCESS
+- ADMIN: ana access ya kusimamia mfumo wote, ikiwemo Settings na Users.
+- TICKET_USER: anaweza kujaza na kusajili tiketi mpya pekee. Hawezi kuona ticket register, kurekebisha/kufuta tiketi, wala kufungua sehemu nyingine za mfumo.
+- BOSS: anaweza kuona Financial Reports pekee na kutoa ripoti zinazopatikana kupitia ukurasa wa ripoti. Anaweza pia kubadili password na kutoka.
+
+3. KUUNDA AKAUNTI
+- Ingia kama ADMIN.
+- Fungua 11. Users & Audit Trail.
+- Chagua role "Ticket Entry User (Tiketi pekee)" kwa mtumiaji wa kujaza tiketi.
+- Chagua tawi lake DAR au UNGUJA; tawi hilo ndilo litatumika wakati wa kurekodi tiketi.
+- Kwa Boss, chagua role Boss.
+
+4. DEPLOY
+- Weka toleo hili kwenye source repository inayotumiwa na Railway kisha redeploy.
+- Usifute wala kubadilisha database ya production. Mabadiliko haya yanatumia app_settings zilizopo na hayahitaji kufuta taarifa za zamani.
+- Hakikisha backup ya database ipo kabla ya deployment.

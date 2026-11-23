@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="sw">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HAWAII ERP - Tengeneza Admin</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b2b40;font-family:Arial,sans-serif;color:#123047;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}.card{background:#fff;width:100%;max-width:600px;border-radius:18px;padding:38px 44px;box-shadow:0 12px 40px #0003}.logo{display:block;max-width:240px;max-height:130px;object-fit:contain;margin:0 auto 24px}h1{text-align:center;font-size:26px;margin:8px 0 10px}.sub{text-align:center;color:#64748b;margin-bottom:26px}label{display:block;font-weight:600;margin:15px 0 7px}input{width:100%;padding:13px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:16px;background:#f8fafc}button{width:100%;margin-top:24px;padding:15px;border:0;border-radius:8px;background:#123f5d;color:white;font-size:17px;font-weight:bold;cursor:pointer}.note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;font-size:14px;line-height:1.5}.error{background:#fee2e2;color:#991b1b;padding:12px;border-radius:8px;margin:12px 0}.hint{font-size:13px;color:#64748b;margin-top:5px}@media(max-width:520px){.card{padding:28px 22px}}
+</style></head><body><main class="card">
+<img class="logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="HAWAII logo">
+<h1>HAWAII TRAVEL AGENCY COMPANY LTD</h1><p class="sub">Usanidi wa kwanza wa IATA Accounting &amp; Reconciliation System</p>
+<div class="note">Hakuna akaunti ya Admin bado. Tengeneza akaunti yako kuu hapa. Ukishatengeneza, ukurasa huu utafungwa na hautaweza kutumiwa tena.</div>
+{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<div class="error">{{ message }}</div>{% endfor %}{% endwith %}
+<form method="post" autocomplete="off">
+<label>Jina kamili</label><input name="full_name" required maxlength="100" autocomplete="name">
+<label>Username</label><input name="username" value="admin" required minlength="3" maxlength="40" autocomplete="username">
+<label>Email ya kurejesha password</label><input type="email" name="email" required autocomplete="email"><div class="hint">Tumia email unayoweza kuifungua. Forgot Password itafanya kazi baada ya kuweka mipangilio ya email (SMTP).</div>
+<label>Password</label><input type="password" name="password" required minlength="9" autocomplete="new-password"><div class="hint">Angalau herufi 9. Tumia password ya kipekee.</div>
+<label>Rudia password</label><input type="password" name="confirm_password" required minlength="9" autocomplete="new-password">
+<button type="submit">Tengeneza Akaunti ya Admin</button></form>
+</main></body></html>

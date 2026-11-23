@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="topbar">
+  <h1>03. Cash Management (Dar Cash, Zanzibar Cash & Lipa Namba)</h1>
+  <div>
+    <a class="btn btn-sm" href="{{ url_for('cash_management', book='ALL') }}">All</a>
+    <a class="btn btn-sm" href="{{ url_for('cash_management', book='DAR_CASH') }}">Dar Cash</a>
+    <a class="btn btn-sm" href="{{ url_for('cash_management', book='UNGUJA_CASH') }}">Zanzibar Cash</a>
+    <a class="btn btn-sm" href="{{ url_for('cash_management', book='LIPA_NAMBA') }}">Lipa Namba</a>
+  </div>
+</div>
+
+<div class="grid-4">
+  <div class="card"><div class="stat-label">Dar es Salaam Cash</div><div class="stat-val">TZS {{ "{:,.2f}".format(balances.dar_tzs) }}</div><div class="stat-sub">USD {{ "{:,.2f}".format(balances.dar_usd) }}</div></div>
+  <div class="card"><div class="stat-label">Zanzibar Cash</div><div class="stat-val">TZS {{ "{:,.2f}".format(balances.znz_tzs) }}</div><div class="stat-sub">USD {{ "{:,.2f}".format(balances.znz_usd) }}</div></div>
+  <div class="card"><div class="stat-label">Lipa Namba (Simu)</div><div class="stat-val">TZS {{ "{:,.2f}".format(balances.lipa_tzs) }}</div><div class="stat-sub">Mobile Money Collection</div></div>
+</div>
+
+<div class="card">
+  <h3>Rekodi Muamala wa Cash / Kuhamisha Kwenda Benki</h3>
+  <form method="POST" class="form-grid">
+    <input type="hidden" name="action" value="add_cash">
+    <div><label>Tarehe</label><input type="date" name="tx_date" value="{{ today }}" required></div>
+    <div><label>Cash Book</label>
+      <select name="book_type">
+        <option value="DAR_CASH">DAR CASH BOOK</option>
+        <option value="UNGUJA_CASH">ZANZIBAR CASH BOOK</option>
+        <option value="LIPA_NAMBA">LIPA NAMBA (SIMU)</option>
+      </select>
+    </div>
+    <div><label>Sarafu</label><select name="currency"><option value="TZS">TZS</option><option value="USD">USD</option></select></div>
+    <div><label>Aina</label>
+      <select name="tx_type">
+        <option value="RECEIPT">CASH RECEIVED (Ingia)</option>
+        <option value="PAYMENT">CASH PAID (Toka)</option>
+        <option value="BANK_DEPOSIT">DEPOSIT TO BANK (Peleka Benki)</option>
+      </select>
+    </div>
+    <div><label>Reference</label><input type="text" name="reference"></div>
+    <div><label>Maelezo</label><input type="text" name="description" required></div>
+    <div><label>Kiasi</label><input type="number" step="0.01" name="amount" required></div>
+    <div><button type="submit">Hifadhi</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Cash & Lipa Namba Ledger</h3>
+  <table>
+    <thead><tr><th>Tarehe</th><th>Book</th><th>Curr</th><th>Aina</th><th>Ref</th><th>Maelezo</th><th class="num">In</th><th class="num">Out</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for tx in txs %}
+      <tr>
+        <td>{{ tx.tx_date }}</td>
+        <td><span class="badge b-blue">{{ 'ZANZIBAR CASH' if tx.book_type == 'UNGUJA_CASH' else tx.book_type }}</span></td>
+        <td>{{ tx.currency }}</td>
+        <td>{{ tx.tx_type }}</td>
+        <td>{{ tx.reference }}</td>
+        <td>{{ tx.description }}</td>
+        <td class="num">{{ "{:,.2f}".format(tx.amount_in) if tx.amount_in else '-' }}</td>
+        <td class="num">{{ "{:,.2f}".format(tx.amount_out) if tx.amount_out else '-' }}</td>
+        <td class="actions-cell">
+          <button type="button" class="btn-sm btn-warning" onclick="openEditCash('{{ tx.id }}','{{ tx.tx_date }}','{{ tx.book_type }}','{{ tx.currency }}','{{ tx.tx_type }}','{{ tx.reference|e }}','{{ tx.description|e }}','{{ tx.amount_in if tx.amount_in else tx.amount_out }}')">Edit</button>
+          <form method="POST" onsubmit="return askDeleteConfirm(this, 'Futa muamala huu wa Cash?');">
+            <input type="hidden" name="action" value="delete_cash">
+            <input type="hidden" name="tx_id" value="{{ tx.id }}">
+            <button type="submit" class="btn-sm btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div id="editCashModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header"><h3>Edit Cash / Lipa Namba</h3><button type="button" class="btn btn-sm" style="background:#64748b;" onclick="closeModal(this.closest('.modal-backdrop').id)">← Rudi Nyuma</button></div>
+    <form method="POST" class="form-grid">
+      <input type="hidden" name="action" value="edit_cash">
+      <input type="hidden" name="tx_id" id="ec_id">
+      <div><label>Tarehe</label><input type="date" name="tx_date" id="ec_date" required></div>
+      <div><label>Cash Book</label><select name="book_type" id="ec_book"><option value="DAR_CASH">DAR_CASH</option><option value="UNGUJA_CASH">ZANZIBAR CASH</option><option value="LIPA_NAMBA">LIPA_NAMBA</option></select></div>
+      <div><label>Sarafu</label><select name="currency" id="ec_curr"><option value="TZS">TZS</option><option value="USD">USD</option></select></div>
+      <div><label>Aina</label><select name="tx_type" id="ec_type"><option value="RECEIPT">RECEIPT</option><option value="PAYMENT">PAYMENT</option><option value="BANK_DEPOSIT">BANK_DEPOSIT</option></select></div>
+      <div><label>Reference</label><input type="text" name="reference" id="ec_ref"></div>
+      <div><label>Maelezo</label><input type="text" name="description" id="ec_desc" required></div>
+      <div><label>Kiasi</label><input type="number" step="0.01" name="amount" id="ec_amt" required></div>
+      <div><button type="submit" class="btn-accent">Hifadhi Marekebisho</button></div>
+    </form>
+  </div>
+</div>
+<script>
+function openEditCash(id, dt, bk, curr, tp, ref, desc, amt) {
+  document.getElementById('ec_id').value = id;
+  document.getElementById('ec_date').value = dt;
+  document.getElementById('ec_book').value = bk;
+  document.getElementById('ec_curr').value = curr;
+  document.getElementById('ec_type').value = tp;
+  document.getElementById('ec_ref').value = ref;
+  document.getElementById('ec_desc').value = desc;
+  document.getElementById('ec_amt').value = amt;
+  openModal('editCashModal');
+}
+</script>
+{% endblock %}

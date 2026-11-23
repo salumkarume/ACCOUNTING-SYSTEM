@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="topbar"><h1>07. Director Current Account & Transfer Control</h1></div>
+
+<div class="grid-4">
+  <div class="card"><div class="stat-label">Boss Deposits (TZS)</div><div class="stat-val" style="color:#16a34a;">TZS {{ "{:,.2f}".format(in_tzs) }}</div></div>
+  <div class="card"><div class="stat-label">Boss Withdrawals (TZS)</div><div class="stat-val" style="color:#dc2626;">TZS {{ "{:,.2f}".format(out_tzs) }}</div></div>
+  <div class="card"><div class="stat-label">Net Director Balance (TZS)</div><div class="stat-val">TZS {{ "{:,.2f}".format(net_tzs) }}</div></div>
+  <div class="card"><div class="stat-label">Net Director Balance (USD)</div><div class="stat-val">USD {{ "{:,.2f}".format(net_usd) }}</div><div class="stat-sub">In: {{ "{:,.2f}".format(in_usd) }} | Out: {{ "{:,.2f}".format(out_usd) }}</div></div>
+</div>
+
+<div class="card">
+  <h3>Rekodi Miamala ya Bosi / Transfers</h3>
+  <form method="POST" class="form-grid">
+    <input type="hidden" name="action" value="add_transfer">
+    <div><label>Tarehe</label><input type="date" name="tx_date" value="{{ today }}" required></div>
+    <div><label>Mwelekeo</label>
+      <select name="direction">
+        <option value="IN_TO_COMPANY">IN: Bosi Ameweka Pesa Kampuni</option>
+        <option value="OUT_FROM_COMPANY">OUT: Bosi Amechukua / Transfer Nje</option>
+        <option value="INTERNAL_TRANSFER">INTERNAL: Kati ya Akaunti za Kampuni</option>
+      </select>
+    </div>
+    <div><label>Aina ya Transfer</label>
+      <select name="transfer_category">
+        <option value="BOSS_DEPOSIT">Boss Deposit</option>
+        <option value="DIRECTOR_WITHDRAWAL">Director Personal Withdrawal</option>
+        <option value="DIRECTOR_LOAN">Director Loan</option>
+        <option value="PERSONAL_ACCOUNT">Transfer to Personal Account</option>
+        <option value="OTHER_COMPANY">Transfer to Other Company</option>
+        <option value="BETWEEN_ACCOUNTS">Transfer Between Company Accounts</option>
+        <option value="UNEXPLAINED">Unexplained Transfer</option>
+      </select>
+    </div>
+    <div><label>Akaunti Husika</label>
+      <select name="account_source">
+        <option value="BANK_TZS">BANK ACCOUNT (TZS)</option>
+        <option value="BANK_USD">BANK ACCOUNT (USD)</option>
+        <option value="DAR_CASH">DAR CASH</option>
+        <option value="UNGUJA_CASH">ZANZIBAR CASH</option>
+        <option value="LIPA_NAMBA">LIPA NAMBA</option>
+      </select>
+    </div>
+    <div><label>Tawi</label><select name="branch"><option value="HQ">HQ</option><option value="DAR">DAR</option><option value="UNGUJA">ZANZIBAR</option></select></div>
+    <div><label>Sarafu</label><select name="currency"><option value="TZS">TZS</option><option value="USD">USD</option></select></div>
+    <div><label>Kiasi</label><input type="number" step="0.01" name="amount" required></div>
+    <div><label>Reference</label><input type="text" name="reference"></div>
+    <div><label>Maelezo</label><input type="text" name="description" required></div>
+    <div><button type="submit">Rekodi Muamala</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Director Ledger & Unexplained Transfers</h3>
+  <table>
+    <thead><tr><th>Tarehe</th><th>Direction</th><th>Category</th><th>Akaunti</th><th>Maelezo</th><th class="num">Kiasi</th><th>Status</th><th>Edit / Delete</th></tr></thead>
+    <tbody>
+      {% for tr in transfers %}
+      <tr>
+        <td>{{ tr.tx_date }}</td>
+        <td>{{ tr.direction }}</td>
+        <td>{{ tr.transfer_category }}</td>
+        <td>{{ tr.account_source }}</td>
+        <td>{{ tr.description }}</td>
+        <td class="num"><strong>{{ tr.currency }} {{ "{:,.2f}".format(tr.amount) }}</strong></td>
+        <td><span class="badge {{ 'b-red' if tr.status=='UNEXPLAINED' else 'b-green' }}">{{ tr.status }}</span></td>
+        <td class="actions-cell">
+          <button type="button" class="btn-sm btn-warning" onclick="openEditDir('{{ tr.id }}','{{ tr.tx_date }}','{{ tr.direction }}','{{ tr.transfer_category }}','{{ tr.branch }}','{{ tr.account_source }}','{{ tr.currency }}','{{ tr.amount }}','{{ tr.reference|e }}','{{ tr.description|e }}')">Edit</button>
+          <form method="POST" onsubmit="return askDeleteConfirm(this, 'Futa muamala huu wa Director?');">
+            <input type="hidden" name="action" value="delete_transfer">
+            <input type="hidden" name="tr_id" value="{{ tr.id }}">
+            <button type="submit" class="btn-sm btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div id="editDirModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header"><h3>Edit Director Transfer</h3><button type="button" class="btn btn-sm" style="background:#64748b;" onclick="closeModal(this.closest('.modal-backdrop').id)">← Rudi Nyuma</button></div>
+    <form method="POST" class="form-grid">
+      <input type="hidden" name="action" value="edit_transfer">
+      <input type="hidden" name="tr_id" id="ed_id">
+      <div><label>Tarehe</label><input type="date" name="tx_date" id="ed_dt" required></div>
+      <div><label>Direction</label><select name="direction" id="ed_dir"><option value="IN_TO_COMPANY">IN_TO_COMPANY</option><option value="OUT_FROM_COMPANY">OUT_FROM_COMPANY</option><option value="INTERNAL_TRANSFER">INTERNAL_TRANSFER</option></select></div>
+      <div><label>Category</label><select name="transfer_category" id="ed_cat"><option value="BOSS_DEPOSIT">BOSS_DEPOSIT</option><option value="DIRECTOR_WITHDRAWAL">DIRECTOR_WITHDRAWAL</option><option value="DIRECTOR_LOAN">DIRECTOR_LOAN</option><option value="PERSONAL_ACCOUNT">PERSONAL_ACCOUNT</option><option value="OTHER_COMPANY">OTHER_COMPANY</option><option value="BETWEEN_ACCOUNTS">BETWEEN_ACCOUNTS</option><option value="UNEXPLAINED">UNEXPLAINED</option></select></div>
+      <div><label>Akaunti</label><select name="account_source" id="ed_src"><option value="BANK_TZS">BANK_TZS</option><option value="BANK_USD">BANK_USD</option><option value="DAR_CASH">DAR_CASH</option><option value="UNGUJA_CASH">ZANZIBAR CASH</option><option value="LIPA_NAMBA">LIPA_NAMBA</option></select></div>
+      <div><label>Tawi</label><select name="branch" id="ed_br"><option value="HQ">HQ</option><option value="DAR">DAR</option><option value="UNGUJA">ZANZIBAR</option></select></div>
+      <div><label>Sarafu</label><select name="currency" id="ed_curr"><option value="TZS">TZS</option><option value="USD">USD</option></select></div>
+      <div><label>Kiasi</label><input type="number" step="0.01" name="amount" id="ed_amt" required></div>
+      <div><label>Reference</label><input type="text" name="reference" id="ed_ref"></div>
+      <div><label>Maelezo</label><input type="text" name="description" id="ed_desc" required></div>
+      <div><button type="submit" class="btn-accent">Hifadhi</button></div>
+    </form>
+  </div>
+</div>
+<script>
+function openEditDir(id, dt, dir, cat, br, src, curr, amt, ref, desc) {
+  document.getElementById('ed_id').value = id;
+  document.getElementById('ed_dt').value = dt;
+  document.getElementById('ed_dir').value = dir;
+  document.getElementById('ed_cat').value = cat;
+  document.getElementById('ed_br').value = br;
+  document.getElementById('ed_src').value = src;
+  document.getElementById('ed_curr').value = curr;
+  document.getElementById('ed_amt').value = amt;
+  document.getElementById('ed_ref').value = ref;
+  document.getElementById('ed_desc').value = desc;
+  openModal('editDirModal');
+}
+</script>
+{% endblock %}

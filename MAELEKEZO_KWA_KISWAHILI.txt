@@ -1,0 +1,52 @@
+HAWAII ERP V5 - TOLEO LA KUJARIBU KWENYE WINDOWS
+
+JINSI YA KUANZA
+1. Extract ZIP yote kwenye folder la kawaida (mfano Desktop\HAWAII_ERP).
+2. Hakikisha Python 3 imewekwa kwenye computer.
+3. Bofya mara mbili ANZA_HAWAII_ERP.bat.
+4. Subiri packages zisakinishwe mara ya kwanza.
+5. Fungua Chrome: http://127.0.0.1:5000
+6. Mara ya kwanza mfumo utakufungulia ukurasa wa kutengeneza Admin. Weka jina, username, email na password yako mwenyewe.
+7. Baada ya kutengeneza Admin, ingia kwa username na password uliyochagua.
+
+USALAMA WA AKAUNTI
+- Hakuna password ya awali iliyowekwa. Wewe mwenyewe unatengeneza password ya kwanza kwenye ukurasa wa Setup.
+- Password lazima iwe na angalau herufi 9.
+- Unaweza kubadili password ukiwa umeingia kupitia menyu ya Badili Password.
+- Ukurasa wa setup unafungwa baada ya akaunti ya kwanza kutengenezwa.
+- Usishiriki password yako na mtu mwingine.
+
+KUSAHAU PASSWORD
+- Kiungo cha Umesahau password? kinahitaji mipangilio ya SMTP (email) kwenye server ili kutuma kiungo cha kurejesha password.
+- Kabla SMTP haijaunganishwa, unaweza kuomba Admin wa mfumo akuwekee upya password kupitia User Management.
+- Weka email halisi unayoimiliki wakati wa kutengeneza Admin.
+
+DATA NA BACKUP
+- Database ya majaribio itahifadhiwa kwenye folder hili kama hawaii_travel.db.
+- Usifute faili hilo. Tumia sehemu ya Backup ya mfumo mara kwa mara na hifadhi nakala nje ya computer.
+- Hili ni toleo la majaribio la local Flask; halijawekwa kwenye hosting bado.
+
+KUSIMAMISHA
+- Bonyeza CTRL+C kwenye dirisha jeusi la Flask ili kusimamisha server.
+- Ukiwasha tena, endesha ANZA_HAWAII_ERP.bat. Data zako zitaendelea kuwepo kwenye database ileile.
+
+
+KUUNGANISHA EMAIL YA KUSAHAU PASSWORD (HOSTING)
+Kwenye Hosting Dashboard, weka Environment Variables hizi:
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=salumkarume28@gmail.com
+SMTP_PASSWORD=Google App Password (si password ya kawaida ya Gmail)
+SMTP_FROM=salumkarume28@gmail.com
+PUBLIC_BASE_URL=https://DOMAIN-YAKO
+
+Kwa Gmail:
+1. Fungua Google Account ya email hii.
+2. Washa 2-Step Verification.
+3. Tengeneza App Password (Mail).
+4. Weka App Password kwenye SMTP_PASSWORD kwenye hosting. Usiiweke kwenye ZIP, GitHub au hapa kwenye chat.
+5. Weka PUBLIC_BASE_URL kuwa URL kamili ya website yako (https://...).
+6. Save variables na restart/redeploy app.
+
+TLS: Port 587 hutumia STARTTLS. Mfumo unaiwasha kabla ya login.
+Mtumiaji akibonyeza “Umesahau Password?”, link ya reset itatumwa kwenye email iliyosajiliwa na ita-expire baada ya dakika 30.

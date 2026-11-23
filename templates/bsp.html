@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="topbar"><h1>05. IATA BSP Billing & Reconciliation</h1></div>
+
+<div class="grid-4">
+  <div class="card"><div class="stat-label">Outstanding BSP Payable (USD)</div><div class="stat-val" style="color:#dc2626;">USD {{ "{:,.2f}".format(out_usd) }}</div></div>
+  <div class="card"><div class="stat-label">Outstanding BSP Payable (TZS)</div><div class="stat-val" style="color:#dc2626;">TZS {{ "{:,.2f}".format(out_tzs) }}</div></div>
+  <div class="card"><div class="stat-label">Unreconciled System Tickets</div><div class="stat-val">{{ unreconciled_tickets|length }}</div></div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h3>1. Import BSP Billing CSV</h3>
+    <p style="font-size:12px;color:#64748b;margin-bottom:10px;">CSV Headers: <code>tx_date,ticket_number,airline,tx_type,currency,amount</code></p>
+    <form method="POST" enctype="multipart/form-data" class="form-grid">
+      <input type="hidden" name="action" value="import_csv">
+      <div><label>Billing Period</label><input type="text" name="billing_period" placeholder="2026-11-W2" required></div>
+      <div><label>CSV File</label><input type="file" name="bsp_file" accept=".csv" required></div>
+      <div><button type="submit">Import & Reconcile</button></div>
+    </form>
+    <hr style="margin:15px 0;border:0;border-top:1px solid #e2e8f0;">
+    <h3>Au Ingiza Tiketi ya BSP Moja Moja</h3>
+    <form method="POST" class="form-grid">
+      <input type="hidden" name="action" value="manual_bsp">
+      <div><label>Period</label><input type="text" name="billing_period" placeholder="2026-11-W2" required></div>
+      <div><label>Tarehe</label><input type="date" name="tx_date" value="{{ today }}" required></div>
+      <div><label>Ticket Number</label><input type="text" name="ticket_number" required></div>
+      <div><label>Airline</label><input type="text" name="airline"></div>
+      <div><label>Type</label><select name="tx_type"><option value="SALE">SALE</option><option value="REFUND">REFUND</option><option value="ADM">ADM</option><option value="ACM">ACM</option></select></div>
+      <div><label>Currency</label><select name="currency"><option value="USD">USD</option><option value="TZS">TZS</option></select></div>
+      <div><label>BSP Amount</label><input type="number" step="0.01" name="bsp_amount" required></div>
+      <div><button type="submit">Linganisha</button></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>2. Rekodi Malipo ya IATA BSP (BSP Settlement)</h3>
+    <form method="POST" class="form-grid">
+      <input type="hidden" name="action" value="pay_bsp">
+      <div><label>Tarehe ya Malipo</label><input type="date" name="payment_date" value="{{ today }}" required></div>
+      <div><label>Billing Period</label><input type="text" name="billing_period" placeholder="2026-11-W2" required></div>
+      <div><label>Sarafu</label><select name="currency"><option value="USD">USD</option><option value="TZS">TZS</option></select></div>
+      <div><label>Kiasi Kilicholipwa</label><input type="number" step="0.01" name="amount_paid" required></div>
+      <div><label>Bank Reference</label><input type="text" name="bank_reference" required></div>
+      <div><label>Maelezo</label><input type="text" name="notes"></div>
+      <div><button type="submit" class="btn-accent">Lipa IATA BSP</button></div>
+    </form>
+    <h3 style="margin-top:18px;">Historia ya Malipo ya BSP</h3>
+    <table>
+      <thead><tr><th>Tarehe</th><th>Period</th><th>Ref</th><th class="num">Kiasi</th><th>Delete</th></tr></thead>
+      <tbody>
+        {% for p in bsp_payments %}
+        <tr>
+          <td>{{ p.payment_date }}</td><td>{{ p.billing_period }}</td><td>{{ p.bank_reference }}</td>
+          <td class="num">{{ p.currency }} {{ "{:,.2f}".format(p.amount_paid) }}</td>
+          <td>
+            <form method="POST" onsubmit="return askDeleteConfirm(this, 'Futa malipo haya ya BSP?');">
+              <input type="hidden" name="action" value="delete_bsp_payment">
+              <input type="hidden" name="payment_id" value="{{ p.id }}">
+              <button type="submit" class="btn-sm btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Matokeo ya BSP Comparison</h3>
+  <table>
+    <thead><tr><th>Period</th><th>Tarehe</th><th>Ticket No</th><th>Airline</th><th>Type</th><th class="num">BSP Amount</th><th>Status</th><th>Edit / Delete</th></tr></thead>
+    <tbody>
+      {% for b in bsp_rows %}
+      <tr>
+        <td>{{ b.billing_period }}</td>
+        <td>{{ b.tx_date }}</td>
+        <td><strong>{{ b.ticket_number }}</strong></td>
+        <td>{{ b.airline }}</td>
+        <td>{{ b.tx_type }}</td>
+        <td class="num">{{ b.currency }} {{ "{:,.2f}".format(b.bsp_amount) }}</td>
+        <td><span class="badge {{ 'b-green' if b.match_status=='MATCHED' else 'b-red' }}">{{ b.match_status }}</span></td>
+        <td class="actions-cell">
+          <button type="button" class="btn-sm btn-warning" onclick="openEditBsp('{{ b.id }}','{{ b.billing_period|e }}','{{ b.tx_date }}','{{ b.ticket_number|e }}','{{ b.airline|e }}','{{ b.tx_type }}','{{ b.currency }}','{{ b.bsp_amount }}')">Edit</button>
+          <form method="POST" onsubmit="return askDeleteConfirm(this, 'Futa rekodi hii ya BSP?');">
+            <input type="hidden" name="action" value="delete_bsp">
+            <input type="hidden" name="bsp_id" value="{{ b.id }}">
+            <button type="submit" class="btn-sm btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div id="editBspModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header"><h3>Edit BSP Record</h3><button type="button" class="btn btn-sm" style="background:#64748b;" onclick="closeModal(this.closest('.modal-backdrop').id)">← Rudi Nyuma</button></div>
+    <form method="POST" class="form-grid">
+      <input type="hidden" name="action" value="edit_bsp">
+      <input type="hidden" name="bsp_id" id="ebsp_id">
+      <div><label>Period</label><input type="text" name="billing_period" id="ebsp_per" required></div>
+      <div><label>Tarehe</label><input type="date" name="tx_date" id="ebsp_dt" required></div>
+      <div><label>Ticket No</label><input type="text" name="ticket_number" id="ebsp_num" required></div>
+      <div><label>Airline</label><input type="text" name="airline" id="ebsp_air"></div>
+      <div><label>Type</label><select name="tx_type" id="ebsp_tp"><option value="SALE">SALE</option><option value="REFUND">REFUND</option><option value="ADM">ADM</option><option value="ACM">ACM</option></select></div>
+      <div><label>Currency</label><select name="currency" id="ebsp_curr"><option value="USD">USD</option><option value="TZS">TZS</option></select></div>
+      <div><label>Amount</label><input type="number" step="0.01" name="bsp_amount" id="ebsp_amt" required></div>
+      <div><button type="submit" class="btn-accent">Hifadhi</button></div>
+    </form>
+  </div>
+</div>
+<script>
+function openEditBsp(id, per, dt, num, air, tp, curr, amt) {
+  document.getElementById('ebsp_id').value = id;
+  document.getElementById('ebsp_per').value = per;
+  document.getElementById('ebsp_dt').value = dt;
+  document.getElementById('ebsp_num').value = num;
+  document.getElementById('ebsp_air').value = air;
+  document.getElementById('ebsp_tp').value = tp;
+  document.getElementById('ebsp_curr').value = curr;
+  document.getElementById('ebsp_amt').value = amt;
+  openModal('editBspModal');
+}
+</script>
+{% endblock %}

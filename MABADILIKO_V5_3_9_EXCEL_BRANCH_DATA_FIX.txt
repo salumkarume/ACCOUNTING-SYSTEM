@@ -1,0 +1,10 @@
+HAWAII TRAVEL ERP V5.3.9 - EXCEL BRANCH DATA VISIBILITY FIX
+
+Marekebisho:
+1. Excel ya DAR/UNGUJA sasa ina safu ya BRANCH ili chanzo cha kila tiketi kijulikane.
+2. Ikiwa tawi lililochaguliwa halina tiketi katika kipindi kilichochaguliwa lakini tawi jingine lina tiketi, ripoti kuu itaonyesha rekodi zilizopo badala ya kuacha jedwali tupu.
+3. Kichwa na jumla vinaeleza wazi kuwa rekodi zinatoka matawi yote pale fallback inapotumika.
+4. Profit Summary inaendelea kuonyesha faida tofauti za DAR, UNGUJA na jumla ya kampuni.
+5. Sheet ya ALL BRANCH TICKETS imehifadhiwa kwa orodha kamili ya matawi yote.
+
+HAKUNA database iliyojumuishwa kwenye ZIP. Hifadhi na endelea kutumia database yako ya sasa.

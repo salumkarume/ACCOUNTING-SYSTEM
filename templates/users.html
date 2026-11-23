@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="topbar"><h1>11. User Management & Complete Audit Trail</h1></div>
+
+{% if current_role == 'admin' %}
+<div class="grid-2">
+  <div class="card">
+    <h3>Ongeza Mtumiaji Mpya</h3>
+    <form method="POST" class="form-grid">
+      <input type="hidden" name="action" value="create_user">
+      <div><label>Username</label><input type="text" name="username" required></div>
+      <div><label>Jina Kamili</label><input type="text" name="full_name" required></div>
+      <div><label>Email ya kurejesha password</label><input type="email" name="email" placeholder="mfano@kampuni.com" required></div>
+      <div><label>Role</label>
+        <select name="role">
+          <option value="ticket_user">Ticket Entry User (Tiketi pekee)</option><option value="accountant">Accountant</option>
+          <option value="dar_user">Dar Branch User</option>
+          <option value="unguja_user">Zanzibar Branch User</option>
+          <option value="boss">Boss</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div><label>Tawi</label><select name="branch"><option value="ALL">ALL</option><option value="DAR">DAR</option><option value="UNGUJA">ZANZIBAR</option></select></div>
+      <div><label>Password (angalau herufi 9)</label><input type="password" name="password" minlength="9" required></div>
+      <div><button type="submit">Unda Akaunti</button></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>Admin Password Reset</h3>
+    <form method="POST" class="form-grid">
+      <input type="hidden" name="action" value="reset_password">
+      <div><label>Chagua Mtumiaji</label>
+        <select name="user_id">
+          {% for u in users %}<option value="{{ u.id }}">{{ u.username }} ({{ u.full_name }})</option>{% endfor %}
+        </select>
+      </div>
+      <div><label>Nywila Mpya</label><input type="password" name="new_password" required></div>
+      <div><button type="submit" class="btn-danger">Badili Password</button></div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h3>Watumiaji wa Mfumo</h3>
+  <table>
+    <thead><tr><th>ID</th><th>Username</th><th>Jina Kamili</th><th>Email</th><th>Role</th><th>Tawi</th><th>Created</th>{% if current_role == 'admin' %}<th>Edit / Delete</th>{% endif %}</tr></thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.id }}</td><td><strong>{{ u.username }}</strong></td><td>{{ u.full_name }}</td><td>{{ u.email or 'Haijawekwa' }}</td><td>{{ u.role }}</td><td>{{ 'ZANZIBAR' if u.branch == 'UNGUJA' else u.branch }}</td><td>{{ u.created_at }}</td>
+        {% if current_role == 'admin' %}
+        <td class="actions-cell">
+          <button type="button" class="btn-sm btn-warning" onclick="openEditUser({{ u.id }}, {{ u.username|tojson }}, {{ u.full_name|tojson }}, {{ (u.email or '')|tojson }}, {{ u.role|tojson }}, {{ u.branch|tojson }})">Edit</button>
+          <form method="POST" onsubmit="return askDeleteConfirm(this, 'Futa mtumiaji {{ u.username }}?');">
+            <input type="hidden" name="action" value="delete_user">
+            <input type="hidden" name="user_id" value="{{ u.id }}">
+            <button type="submit" class="btn-sm btn-danger">Delete</button>
+          </form>
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div id="editUserModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header"><h3>Edit User</h3><button type="button" class="btn btn-sm" style="background:#64748b;" onclick="closeModal(this.closest('.modal-backdrop').id)">← Rudi Nyuma</button></div>
+    <form method="POST" class="form-grid">
+      <input type="hidden" name="action" value="edit_user">
+      <input type="hidden" name="user_id" id="eu_id">
+      <div><label>Username</label><input type="text" name="username" id="eu_un" required></div>
+      <div><label>Jina Kamili</label><input type="text" name="full_name" id="eu_fn" required></div>
+      <div><label>Email ya kurejesha password</label><input type="email" name="email" id="eu_email" required></div>
+      <div><label>Role</label><select name="role" id="eu_rl"><option value="ticket_user">Ticket Entry User</option><option value="accountant">Accountant</option><option value="dar_user">Dar User</option><option value="unguja_user">Zanzibar User</option><option value="boss">Boss</option><option value="admin">Admin</option></select></div>
+      <div><label>Tawi</label><select name="branch" id="eu_br"><option value="ALL">ALL</option><option value="DAR">DAR</option><option value="UNGUJA">ZANZIBAR</option></select></div>
+      <div><button type="submit" class="btn-accent">Hifadhi</button></div>
+    </form>
+  </div>
+</div>
+<script>
+function openEditUser(id, un, fn, em, rl, br) {
+  document.getElementById('eu_id').value = id;
+  document.getElementById('eu_un').value = un;
+  document.getElementById('eu_fn').value = fn;
+  document.getElementById('eu_email').value = em;
+  document.getElementById('eu_rl').value = rl;
+  document.getElementById('eu_br').value = br;
+  openModal('editUserModal');
+}
+</script>
+
+<div class="card">
+  <h3>Audit Trail</h3>
+  <table>
+    <thead><tr><th>Muda</th><th>User</th><th>Action</th><th>Module</th><th>Record ID</th><th>Maelezo</th></tr></thead>
+    <tbody>
+      {% for a in audits %}
+      <tr><td>{{ a.created_at }}</td><td>{{ a.username }}</td><td>{{ a.action }}</td><td>{{ a.module }}</td><td>{{ a.record_id }}</td><td>{{ a.details }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

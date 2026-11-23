@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="topbar"><h1>04. Ticket Management (NON-IATA, Working & Corporate)</h1><button type="button" class="btn-print no-print" onclick="window.print()">🖨️ Print Ukurasa</button></div>
+
+<div class="card no-print">
+  <h3>Sajili Mauzo ya Tiketi Mpya</h3>
+  <form method="POST" class="form-grid">
+    <input type="hidden" name="action" value="create">
+    <div><label>Tarehe</label><input type="date" name="ticket_date" value="{{ today }}" required></div>
+    <div><label>Ticket Number</label><input type="text" name="ticket_number" class="ticket-number-input" placeholder="123-5566666789" maxlength="14" inputmode="numeric" autocomplete="off" required></div>
+    <div><label>Jina la Abiria</label><input type="text" name="passenger_name" required></div>
+    <div><label>Airline</label><input type="text" name="airline" placeholder="QR / KQ / PW / TC" required></div>
+    <div><label>Route</label><input type="text" name="route" placeholder="DAR-ZNZ-DXB"></div>
+    <div><label>Mteja (Customer Account)</label>
+      <select name="customer_id" id="tk_customer_id" onchange="syncTicketCustomer(this)">
+        <option value="">-- Chagua Mteja Aliyesajiliwa --</option>
+        {% for c in customers %}
+        <option value="{{ c.id }}" data-cat="{{ c.category }}" data-branch="{{ c.branch }}" data-name="{{ c.name }}" data-tzs="{{ c.debt_tzs if c.debt_tzs is defined else 0 }}" data-usd="{{ c.debt_usd if c.debt_usd is defined else 0 }}">
+          {{ c.name }} ({{ c.category }} - {{ 'ZANZIBAR' if c.branch == 'UNGUJA' else c.branch }})
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div><label>Aina ya Mteja</label>
+      <select name="client_type" id="tk_client_type" onchange="applyProfitRule()">
+        <option value="NON-IATA">NON-IATA (AGENT)</option>
+        <option value="WORKING CLIENT">WORKING CLIENT</option>
+        <option value="CORPORATE">CORPORATE</option>
+      </select>
+    </div>
+    <div><label>Tawi</label>{% if ticket_entry_only %}<input type="text" value="{{ 'ZANZIBAR' if current_branch == 'UNGUJA' else current_branch }}" disabled><input type="hidden" name="branch" value="{{ current_branch }}">{% else %}<select name="branch" id="tk_branch"><option value="DAR">DAR</option><option value="UNGUJA">ZANZIBAR</option></select>{% endif %}</div>
+    <div><label>Sarafu</label><select name="currency" id="tk_currency" onchange="applyProfitRule()"><option value="USD">USD</option><option value="TZS">TZS</option></select></div>
+    <div><label>Net Fare (IATA Base)</label><input type="number" step="0.01" name="net_fare" id="tk_net" value="0" oninput="calcTicketTotal()" required></div>
+    <div><label>Taxes (IATA Tax)</label><input type="number" step="0.01" name="taxes" id="tk_tax" value="0" oninput="calcTicketTotal()" required></div>
+    <div><label>Service Charge / Profit (NON-IATA fixed; Working Client agreed)</label><input type="number" step="0.01" name="service_charge" id="tk_svc" value="0" oninput="calcTicketTotal()" required></div>
+    <div><label>Airline Commission</label><input type="number" step="0.01" name="commission" value="0"></div>
+    <div><label>Njia ya Malipo</label>
+      <select name="payment_method" id="tk_pm" onchange="toggleTicketPaid()">
+        <option value="BANK">BANK TRANSFER</option>
+        <option value="CASH">CASH</option>
+        <option value="LIPA_NAMBA">LIPA NAMBA</option>
+        <option value="CREDIT">CREDIT (MKOPO - DENI)</option>
+      </select>
+    </div>
+    <div><label>Kiasi Alicholipa (<span id="tk_total_lbl">Total: 0.00</span>)</label><input type="number" step="0.01" name="amount_paid" id="tk_paid" value="0" required></div>
+    <div><button type="submit">Rekodi Tiketi</button></div>
+  </form>
+</div>
+
+{% if not ticket_entry_only %}
+<div class="card no-print">
+  <h3>Chagua Tarehe za Tiketi Unazotaka (Date Range)</h3>
+  <form method="GET" action="{{ url_for('ticket_management') }}" class="form-grid">
+    <div><label>Tarehe Kuanzia</label><input type="date" name="date_from" value="{{ date_from }}"></div>
+    <div><label>Tarehe Mpaka</label><input type="date" name="date_to" value="{{ date_to }}"></div>
+    <div><label>Tafuta kwa Jina / Ticket No / Airline</label><input type="search" name="q" value="{{ search_term }}" placeholder="Jina la abiria au mteja..."></div>
+    <div><label>Tawi</label><select name="branch"><option value="ALL" {{ 'selected' if branch_filter=='ALL' else '' }}>Matawi Yote</option><option value="DAR" {{ 'selected' if branch_filter=='DAR' else '' }}>DAR</option><option value="UNGUJA" {{ 'selected' if branch_filter=='UNGUJA' else '' }}>ZANZIBAR</option></select></div>
+    <div><label>Sarafu</label><select name="currency"><option value="ALL" {{ 'selected' if currency_filter=='ALL' else '' }}>Sarafu Zote</option><option value="TZS" {{ 'selected' if currency_filter=='TZS' else '' }}>TZS</option><option value="USD" {{ 'selected' if currency_filter=='USD' else '' }}>USD</option></select></div>
+    <div class="ticket-filter-actions">
+      <div class="ticket-filter-primary"><button type="submit" class="ticket-search-btn">Tafuta Tiketi</button><a class="ticket-clear-btn" href="{{ url_for('ticket_management') }}">Futa Filter</a></div>
+      <div class="ticket-filter-exports"><button type="button" class="btn-accent ticket-print-btn" onclick="window.print()">🖨️ Print / Chapisha</button><a class="btn-sm btn-excel" href="{{ url_for('export_dar_tickets_excel', date_from=date_from, date_to=date_to) }}">🟩 Excel – DAR Branch</a><a class="btn-sm btn-excel" href="{{ url_for('export_unguja_tickets_excel', date_from=date_from, date_to=date_to) }}">🟩 Excel – ZANZIBAR Branch</a></div>
+    </div>
+  </form>
+  <small>Chagua tarehe ya kuanzia na tarehe ya mwisho kwenye kalenda. Mfano: 01/11 hadi 19/11.</small>
+</div>
+
+<div class="card ticket-register-card">
+  <div class="ticket-print-heading" style="display:none">
+    <div class="ticket-print-brand"><img src="{{ url_for('static', filename='images/logo.png') }}" alt="Hawaii Travel Agency Logo"><div><h2>HAWAII TRAVEL AGENCY COMPANY LIMITED</h2><strong>IATA Accredited Travel &amp; Tour Agency • DAR &amp; ZANZIBAR</strong><p>TICKET REGISTER</p></div></div>
+    <p>Kipindi: {{ date_from or 'Mwanzo' }} hadi {{ date_to or 'Leo / Mwisho' }} | Tawi: {{ 'Matawi Yote' if branch_filter=='ALL' else ('ZANZIBAR' if branch_filter == 'UNGUJA' else branch_filter) }}</p>
+    <p>Imechapishwa: {{ today }}</p>
+  </div>
+  <h3>Daftari la Tiketi (Ticket Register) – {{ tickets|length }} tiketi</h3>
+  <div class="ticket-print-totals">
+    <strong>Muhtasari:</strong>
+    TZS: {{ totals.TZS.count }} tiketi | Mauzo {{ "{:,.2f}".format(totals.TZS.selling) }} | Paid {{ "{:,.2f}".format(totals.TZS.paid) }}
+    &nbsp; || &nbsp; USD: {{ totals.USD.count }} tiketi | Mauzo {{ "{:,.2f}".format(totals.USD.selling) }} | Paid {{ "{:,.2f}".format(totals.USD.paid) }}
+  </div>
+  <table>
+    <thead><tr><th>#</th><th>Tarehe</th><th>Ticket No</th><th>Abiria / Mteja</th><th>Tawi</th><th>Client</th><th class="num">IATA Cost</th><th class="num">Selling</th><th class="num">Paid</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for t in tickets %}
+      <tr>
+        <td class="ticket-row-number">{{ loop.index }}</td>
+        <td>{{ t.ticket_date }}</td>
+        <td><strong>{{ t.ticket_number }}</strong><br><small>{{ t.airline }} {{ t.route }}</small></td>
+        <td>{{ t.passenger_name }}<br><small style="color:#0f3d5e;font-weight:600;">{{ t.customer_name or 'Walk-in' }}</small></td>
+        <td>{{ 'ZANZIBAR' if t.branch == 'UNGUJA' else t.branch }}</td>
+        <td>{{ t.client_type }}</td>
+        <td class="num">{{ t.currency }} {{ "{:,.2f}".format(t.net_fare + t.taxes) }}</td>
+        <td class="num">{{ t.currency }} {{ "{:,.2f}".format(t.total_selling) }}</td>
+        <td class="num">{{ t.currency }} {{ "{:,.2f}".format(t.amount_paid) }}</td>
+        <td><span class="badge {{ 'b-green' if t.payment_status=='PAID' else ('b-amber' if t.payment_status=='PARTIAL' else 'b-red') }}">{{ t.payment_status }}</span> <span class="badge b-blue">{{ t.status }}</span></td>
+        <td class="actions-cell">
+          <button type="button" class="action-pill action-edit" onclick="openEditTicket('{{ t.id }}','{{ t.ticket_date }}','{{ t.ticket_number|e }}','{{ t.passenger_name|e }}','{{ t.airline|e }}','{{ t.route|e }}','{{ t.client_type }}','{{ t.customer_id or '' }}','{{ t.branch }}','{{ t.currency }}','{{ t.net_fare }}','{{ t.taxes }}','{{ t.service_charge }}','{{ t.commission }}','{{ t.payment_method }}','{{ t.amount_paid }}')">Edit</button>
+          {% if t.status == 'ISSUED' %}
+          <form method="POST" style="display:inline;">
+            <input type="hidden" name="action" value="status_change">
+            <input type="hidden" name="ticket_id" value="{{ t.id }}">
+            <button type="submit" name="new_status" value="REFUNDED" class="action-pill action-refund">↩ Refund</button>
+          </form>
+          {% endif %}
+          <form method="POST" style="display:inline;" onsubmit="return askDeleteConfirm(this, 'Una uhakika unataka kufuta tiketi {{ t.ticket_number }}?');">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="ticket_id" value="{{ t.id }}">
+            <button type="submit" class="action-pill action-delete">✕ Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if not ticket_entry_only %}
+<div id="editTicketModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header"><h3>Rekebisha Taarifa za Tiketi (Edit)</h3><button type="button" class="btn btn-sm" style="background:#64748b;" onclick="closeModal(this.closest('.modal-backdrop').id)">← Rudi Nyuma</button></div>
+    <form method="POST" class="form-grid">
+      <input type="hidden" name="action" value="edit">
+      <input type="hidden" name="ticket_id" id="et_id">
+      <div><label>Tarehe</label><input type="date" name="ticket_date" id="et_date" required></div>
+      <div><label>Ticket Number</label><input type="text" name="ticket_number" id="et_num" class="ticket-number-input" placeholder="123-5566666789" maxlength="14" inputmode="numeric" autocomplete="off" required></div>
+      <div><label>Abiria</label><input type="text" name="passenger_name" id="et_pax" required></div>
+      <div><label>Airline</label><input type="text" name="airline" id="et_air" required></div>
+      <div><label>Route</label><input type="text" name="route" id="et_rt"></div>
+      <div><label>Aina ya Mteja</label><select name="client_type" id="et_ctype"><option value="NON-IATA">NON-IATA (AGENT)</option><option value="WORKING CLIENT">WORKING CLIENT</option><option value="CORPORATE">CORPORATE</option></select></div>
+      <div><label>Customer Account</label>
+        <select name="customer_id" id="et_cid">
+          <option value="">-- Chagua Mteja --</option>
+          {% for c in customers %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div><label>Tawi</label><select name="branch" id="et_br"><option value="DAR">DAR</option><option value="UNGUJA">ZANZIBAR</option></select></div>
+      <div><label>Sarafu</label><select name="currency" id="et_curr"><option value="USD">USD</option><option value="TZS">TZS</option></select></div>
+      <div><label>Net Fare</label><input type="number" step="0.01" name="net_fare" id="et_net" required></div>
+      <div><label>Taxes</label><input type="number" step="0.01" name="taxes" id="et_tax" required></div>
+      <div><label>Service Charge</label><input type="number" step="0.01" name="service_charge" id="et_svc" required></div>
+      <div><label>Commission</label><input type="number" step="0.01" name="commission" id="et_com"></div>
+      <div><label>Njia ya Malipo</label><select name="payment_method" id="et_pm"><option value="BANK">BANK</option><option value="CASH">CASH</option><option value="LIPA_NAMBA">LIPA_NAMBA</option><option value="CREDIT">CREDIT</option></select></div>
+      <div><label>Kiasi Alicholipa (<span id="et_total_lbl">Total: 0.00</span>)</label><input type="number" step="0.01" name="amount_paid" id="et_paid" required></div>
+      <div><button type="submit" class="btn-accent">Hifadhi Marekebisho</button></div>
+    </form>
+  </div>
+</div>
+
+{% endif %}
+<script>
+// Ticket number format: 3 digits, hyphen, then up to 10 digits.
+function formatTicketNumber(value) {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 13);
+  if (digits.length <= 3) return digits;
+  return digits.slice(0, 3) + '-' + digits.slice(3);
+}
+
+document.querySelectorAll('.ticket-number-input').forEach((input) => {
+  input.addEventListener('input', () => {
+    const before = input.value;
+    const start = input.selectionStart || before.length;
+    const digitsBeforeCursor = before.slice(0, start).replace(/\D/g, '').length;
+    input.value = formatTicketNumber(before);
+    // Keep the cursor in the expected position as the hyphen is inserted.
+    let newPos = digitsBeforeCursor;
+    if (digitsBeforeCursor > 3) newPos += 1;
+    input.setSelectionRange(Math.min(newPos, input.value.length), Math.min(newPos, input.value.length));
+  });
+  input.addEventListener('paste', () => {
+    setTimeout(() => { input.value = formatTicketNumber(input.value); }, 0);
+  });
+});
+
+function syncTicketCustomer(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt || !opt.value) return;
+  const cat = opt.getAttribute('data-cat');
+  const br = opt.getAttribute('data-branch');
+  if (cat && ['NON-IATA','WORKING CLIENT','CORPORATE'].includes(cat)) document.getElementById('tk_client_type').value = cat;
+  if (br) document.getElementById('tk_branch').value = br;
+}
+
+function applyProfitRule() {
+  const category = document.getElementById('tk_client_type').value;
+  const currency = document.getElementById('tk_currency').value;
+  const svc = document.getElementById('tk_svc');
+  // Use the configured fee as a starting value, but always allow manual editing.
+  if (category === 'NON-IATA' && (svc.value === '' || svc.dataset.currency !== currency)) {
+    svc.value = currency === 'USD' ? '{{ non_iata_fee_usd }}' : '{{ non_iata_fee_tzs }}';
+  }
+  svc.readOnly = false;
+  svc.dataset.currency = currency;
+  calcTicketTotal();
+}
+
+function calcTicketTotal() {
+  const net = parseFloat(document.getElementById('tk_net').value) || 0;
+  const tax = parseFloat(document.getElementById('tk_tax').value) || 0;
+  const svc = parseFloat(document.getElementById('tk_svc').value) || 0;
+  const tot = net + tax + svc;
+  document.getElementById('tk_total_lbl').textContent = 'Total: ' + tot.toLocaleString('en-US', {minimumFractionDigits:2});
+  if (document.getElementById('tk_pm').value !== 'CREDIT') {
+    document.getElementById('tk_paid').value = tot.toFixed(2);
+  }
+}
+
+function toggleTicketPaid() {
+  const pm = document.getElementById('tk_pm').value;
+  if (pm === 'CREDIT') {
+    document.getElementById('tk_paid').value = '0';
+  } else {
+    calcTicketTotal();
+  }
+}
+
+let editTicketPreviousTotal = 0;
+let editTicketWasFullyPaid = false;
+
+function calcEditTicketTotal(changedField = false) {
+  const net = parseFloat(document.getElementById('et_net').value) || 0;
+  const tax = parseFloat(document.getElementById('et_tax').value) || 0;
+  const svc = parseFloat(document.getElementById('et_svc').value) || 0;
+  const total = Math.max(0, net + tax + svc);
+  const paidInput = document.getElementById('et_paid');
+  const pm = document.getElementById('et_pm').value;
+  document.getElementById('et_total_lbl').textContent = 'Total: ' + total.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  if (pm === 'CREDIT') {
+    paidInput.value = '0.00';
+  } else if (changedField && editTicketWasFullyPaid) {
+    // If the ticket was fully paid before editing, keep it fully paid at the new total.
+    paidInput.value = total.toFixed(2);
+  } else if (parseFloat(paidInput.value) > total) {
+    paidInput.value = total.toFixed(2);
+  }
+  return total;
+}
+
+['et_net', 'et_tax', 'et_svc'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => calcEditTicketTotal(true));
+});
+document.getElementById('et_pm').addEventListener('change', () => calcEditTicketTotal(true));
+function applyEditTicketProfitRule() {
+  const category = document.getElementById('et_ctype').value;
+  const currency = document.getElementById('et_curr').value;
+  const svc = document.getElementById('et_svc');
+  // Existing ticket service charge remains editable, including NON-IATA.
+  svc.readOnly = false;
+  calcEditTicketTotal(true);
+}
+document.getElementById('et_ctype').addEventListener('change', applyEditTicketProfitRule);
+document.getElementById('et_curr').addEventListener('change', applyEditTicketProfitRule);
+
+function openEditTicket(id, dt, num, pax, air, rt, ctype, cid, br, curr, net, tax, svc, com, pm, paid) {
+  document.getElementById('et_id').value = id;
+  document.getElementById('et_date').value = dt;
+  document.getElementById('et_num').value = formatTicketNumber(num);
+  document.getElementById('et_pax').value = pax;
+  document.getElementById('et_air').value = air;
+  document.getElementById('et_rt').value = rt;
+  document.getElementById('et_ctype').value = ['NON-IATA','WORKING CLIENT','CORPORATE'].includes(ctype) ? ctype : 'WORKING CLIENT';
+  document.getElementById('et_cid').value = cid;
+  document.getElementById('et_br').value = br;
+  document.getElementById('et_curr').value = curr;
+  document.getElementById('et_net').value = net;
+  document.getElementById('et_tax').value = tax;
+  document.getElementById('et_svc').value = svc;
+  document.getElementById('et_com').value = com;
+  document.getElementById('et_pm').value = pm;
+  document.getElementById('et_paid').value = paid;
+  editTicketPreviousTotal = (parseFloat(net) || 0) + (parseFloat(tax) || 0) + (parseFloat(svc) || 0);
+  editTicketWasFullyPaid = editTicketPreviousTotal > 0 && (parseFloat(paid) || 0) >= editTicketPreviousTotal - 0.01;
+  calcEditTicketTotal(false);
+  openModal('editTicketModal');
+}
+document.addEventListener('DOMContentLoaded', function(){ applyProfitRule(); });
+</script>
+<style>
+.ticket-print-totals { margin: 10px 0 14px; padding: 10px; background: #f1f5f9; border-radius: 6px; }
+.ticket-print-heading { text-align:center; }
+.ticket-print-brand { display:flex;align-items:center;justify-content:center;gap:16px;text-align:left;border-bottom:2px solid #17364d;padding-bottom:10px;margin-bottom:10px; }
+.ticket-print-brand img { max-width:110px;max-height:70px;object-fit:contain; }
+.ticket-print-brand h2 { margin:0 0 5px;font-size:18px; }
+.ticket-print-brand p { margin:4px 0; }
+@media print {
+  @page { size: landscape; margin: 10mm; }
+  body { background:#fff !important; color:#000 !important; }
+  .sidebar, .nav-back-bar, #flash-container, .no-print, .topbar, .actions-cell, th:last-child, td:last-child,
+  #editTicketModal, #modernDeleteModal { display:none !important; }
+  .main { margin:0 !important; padding:0 !important; width:100% !important; }
+  .card { box-shadow:none !important; border:0 !important; padding:0 !important; margin:0 !important; }
+  .ticket-register-card { display:block !important; }
+  .ticket-register-card table { page-break-inside:auto; }
+  .ticket-print-heading { display:block !important; }
+  .ticket-print-totals { background:#fff !important; border:1px solid #999; }
+  table { width:100% !important; border-collapse:collapse !important; font-size:9pt !important; }
+  th, td { border:1px solid #777 !important; padding:5px !important; color:#000 !important; }
+  thead { display:table-header-group; }
+  tr { page-break-inside:avoid; }
+}
+</style>
+{% endblock %}

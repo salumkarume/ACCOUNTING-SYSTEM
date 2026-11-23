@@ -1,0 +1,12 @@
+HAWAII ERP V5.3.5 – MABADILIKO
+
+1. Baada ya kufuta rekodi, ukurasa unarudi kwenye nafasi ileile ya scroll badala ya kurukia juu.
+   Inatumia scroll position ya eneo kuu (.main) kwenye desktop na window kwenye simu.
+2. Muonekano wa vitufe vya Edit, Refund na Delete umeunganishwa katika mfumo mzima:
+   - Edit: bluu nyepesi
+   - Refund: rangi ya machungwa nyepesi
+   - Delete: nyekundu nyepesi
+   Vitufe vina kona za mviringo, nafasi nzuri na hover effect.
+3. Marekebisho yamefanywa kwenye base.html na style.css; hakuna mabadiliko ya schema/database au hesabu za kifedha.
+
+Kumbuka: hifadhi nakala ya database kabla ya kubadilisha toleo.

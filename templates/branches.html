@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="topbar"><h1>08. Branch Control (DAR es Salaam vs ZANZIBAR)</h1></div>
+
+<div class="grid-2">
+  {% for b in ['DAR', 'UNGUJA'] %}
+  <div class="card">
+    <h3>Tawi la {{ 'Dar es Salaam (DAR)' if b=='DAR' else 'Zanzibar' }}</h3>
+    <table>
+      <tr><td>Cash Mkononi (TZS)</td><td class="num"><strong>TZS {{ "{:,.2f}".format(stats[b].cash_tzs) }}</strong></td></tr>
+      <tr><td>Cash Mkononi (USD)</td><td class="num"><strong>USD {{ "{:,.2f}".format(stats[b].cash_usd) }}</strong></td></tr>
+      <tr><td>Jumla ya Tiketi Zilizouzwa</td><td class="num">{{ stats[b].tickets_count }}</td></tr>
+      <tr><td>Jumla ya Mauzo (TZS)</td><td class="num">TZS {{ "{:,.2f}".format(stats[b].sales_tzs) }}</td></tr>
+      <tr><td>Jumla ya Mauzo (USD)</td><td class="num">USD {{ "{:,.2f}".format(stats[b].sales_usd) }}</td></tr>
+      <tr><td>Faida / Service Fee (TZS)</td><td class="num" style="color:#16a34a;">TZS {{ "{:,.2f}".format(stats[b].profit_tzs) }}</td></tr>
+      <tr><td>Faida / Service Fee (USD)</td><td class="num" style="color:#16a34a;">USD {{ "{:,.2f}".format(stats[b].profit_usd) }}</td></tr>
+      <tr><td>Matumizi Yaliyoidhinishwa (TZS)</td><td class="num" style="color:#dc2626;">TZS {{ "{:,.2f}".format(stats[b].exp_tzs) }}</td></tr>
+      <tr><td>Matumizi Yaliyoidhinishwa (USD)</td><td class="num" style="color:#dc2626;">USD {{ "{:,.2f}".format(stats[b].exp_usd) }}</td></tr>
+    </table>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

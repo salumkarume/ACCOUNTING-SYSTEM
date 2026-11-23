@@ -1,0 +1,12 @@
+HAWAII ERP V5.4.1 - MABADILIKO YA EXCEL EXPORT
+
+Sheria iliyotekelezwa:
+1. Excel ya DAR inaonyesha tiketi za DAR pamoja na tiketi za UNGUJA kwenye Ticket Register na sheet ya detail.
+2. Excel ya UNGUJA inaonyesha tiketi za UNGUJA pekee kwenye Ticket Register na sheet ya detail.
+3. Profit Summary kwenye Excel ya DAR inaonyesha DAR PROFIT, UNGUJA PROFIT na TOTAL COMPANY PROFIT.
+4. Hakuna mabadiliko ya database schema yaliyofanywa.
+5. Hakuna hesabu za mauzo au malipo zilizobadilishwa.
+
+Ukaguzi:
+- Python compilation imepita.
+- Workbook test ya data za majaribio imepita: DAR export = DAR + UNGUJA; UNGUJA export = UNGUJA pekee.

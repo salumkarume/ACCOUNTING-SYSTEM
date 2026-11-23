@@ -1,0 +1,21 @@
+HAWAII TRAVEL ERP V5.4.2 – MABADILIKO
+
+1. Excel ya DAR sasa ina worksheet MOJA tu: DAR+ZANZIBAR REGISTER.
+   - Ina tiketi zote za DAR na ZANZIBAR kwa pamoja.
+   - Profit Summary ina DAR PROFIT, ZANZIBAR PROFIT na TOTAL COMPANY PROFIT.
+
+2. Excel ya ZANZIBAR ina worksheet MOJA tu: ZANZIBAR REGISTER.
+   - Ina tiketi za ZANZIBAR pekee.
+   - Profit Summary ina ZANZIBAR PROFIT pekee.
+
+3. CORPORATE USD na CORPORATE TZS
+   - Nimeimarisha utambuzi wa aina ya mteja CORPORATE kwenye Excel.
+   - Service Fee ya CORPORATE USD inaingia kwenye safu yake na Profit Summary.
+   - Dashboard sasa inaonyesha faida ya CORPORATE kwa kila tawi na jumla.
+
+4. Jina la tawi
+   - Maandishi yanayoonekana kwenye kurasa za mfumo yamebadilishwa kutoka UNGUJA kwenda ZANZIBAR.
+   - Thamani za ndani za database, kama UNGUJA na UNGUJA_CASH, zimeachwa vilevile ili kulinda database ya zamani na ulinganifu wa rekodi.
+   - Majina yanayoonekana kwenye Excel, kurasa, dropdowns na taarifa za matawi ni DAR na ZANZIBAR.
+
+5. Database haijafutwa wala kuanzishwa upya. Tumia database yako ya sasa kama kawaida.

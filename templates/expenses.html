@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="topbar"><h1>09. Expenses Management & Approval Workflow</h1></div>
+
+<div class="card">
+  <h3>Omba / Rekodi Matumizi ya Ofisi</h3>
+  <form method="POST" class="form-grid">
+    <input type="hidden" name="action" value="add_expense">
+    <div><label>Tarehe</label><input type="date" name="expense_date" value="{{ today }}" required></div>
+    <div><label>Tawi</label><select name="branch"><option value="DAR">DAR</option><option value="UNGUJA">ZANZIBAR</option></select></div>
+    <div><label>Kipengele</label><select name="category"><option value="OFFICE">Office Expenses</option><option value="SALARIES">Salaries</option><option value="OPERATIONAL">Operational Costs</option><option value="OTHER">Other</option></select></div>
+    <div><label>Maelezo</label><input type="text" name="description" required></div>
+    <div><label>Sarafu</label><select name="currency"><option value="TZS">TZS</option><option value="USD">USD</option></select></div>
+    <div><label>Kiasi</label><input type="number" step="0.01" name="amount" required></div>
+    <div><label>Pesa Inatoka Wapi?</label>
+      <select name="payment_source">
+        <option value="DAR_CASH">DAR CASH</option>
+        <option value="UNGUJA_CASH">ZANZIBAR CASH</option>
+        <option value="LIPA_NAMBA">LIPA NAMBA</option>
+        <option value="BANK_TZS">BANK (TZS)</option>
+        <option value="BANK_USD">BANK (USD)</option>
+      </select>
+    </div>
+    <div><button type="submit">Wasilisha</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Orodha ya Matumizi & Approvals</h3>
+  <table>
+    <thead><tr><th>Tarehe</th><th>Tawi</th><th>Category</th><th>Maelezo</th><th>Source</th><th class="num">Kiasi</th><th>Status</th><th>Edit / Approve / Delete</th></tr></thead>
+    <tbody>
+      {% for e in expenses %}
+      <tr>
+        <td>{{ e.expense_date }}</td>
+        <td>{{ 'ZANZIBAR' if e.branch == 'UNGUJA' else e.branch }}</td>
+        <td>{{ e.category }}</td>
+        <td>{{ e.description }}</td>
+        <td>{{ 'ZANZIBAR CASH' if e.payment_source == 'UNGUJA_CASH' else e.payment_source }}</td>
+        <td class="num">{{ e.currency }} {{ "{:,.2f}".format(e.amount) }}</td>
+        <td><span class="badge {{ 'b-green' if e.status=='APPROVED' else ('b-red' if e.status=='REJECTED' else 'b-amber') }}">{{ e.status }}</span></td>
+        <td class="actions-cell">
+          <button type="button" class="btn-sm btn-warning" onclick="openEditExp('{{ e.id }}','{{ e.expense_date }}','{{ e.branch }}','{{ e.category }}','{{ e.description|e }}','{{ e.currency }}','{{ e.amount }}','{{ e.payment_source }}')">Edit</button>
+          {% if e.status == 'PENDING' and current_role in ('admin', 'accountant', 'boss') %}
+          <form method="POST" style="display:inline;">
+            <input type="hidden" name="expense_id" value="{{ e.id }}">
+            <button type="submit" name="action" value="APPROVE" class="btn-sm btn-accent">Approve</button>
+            <button type="submit" name="action" value="REJECT" class="btn-sm">Reject</button>
+          </form>
+          {% endif %}
+          <form method="POST" style="display:inline;" onsubmit="return askDeleteConfirm(this, 'Futa rekodi hii ya matumizi?');">
+            <input type="hidden" name="action" value="delete_expense">
+            <input type="hidden" name="expense_id" value="{{ e.id }}">
+            <button type="submit" class="btn-sm btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div id="editExpModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header"><h3>Edit Expense</h3><button type="button" class="btn btn-sm" style="background:#64748b;" onclick="closeModal(this.closest('.modal-backdrop').id)">← Rudi Nyuma</button></div>
+    <form method="POST" class="form-grid">
+      <input type="hidden" name="action" value="edit_expense">
+      <input type="hidden" name="expense_id" id="ee_id">
+      <div><label>Tarehe</label><input type="date" name="expense_date" id="ee_dt" required></div>
+      <div><label>Tawi</label><select name="branch" id="ee_br"><option value="DAR">DAR</option><option value="UNGUJA">ZANZIBAR</option></select></div>
+      <div><label>Category</label><select name="category" id="ee_cat"><option value="OFFICE">OFFICE</option><option value="SALARIES">SALARIES</option><option value="OPERATIONAL">OPERATIONAL</option><option value="OTHER">OTHER</option></select></div>
+      <div><label>Maelezo</label><input type="text" name="description" id="ee_desc" required></div>
+      <div><label>Sarafu</label><select name="currency" id="ee_curr"><option value="TZS">TZS</option><option value="USD">USD</option></select></div>
+      <div><label>Kiasi</label><input type="number" step="0.01" name="amount" id="ee_amt" required></div>
+      <div><label>Source</label><select name="payment_source" id="ee_src"><option value="DAR_CASH">DAR_CASH</option><option value="UNGUJA_CASH">ZANZIBAR CASH</option><option value="LIPA_NAMBA">LIPA_NAMBA</option><option value="BANK_TZS">BANK_TZS</option><option value="BANK_USD">BANK_USD</option></select></div>
+      <div><button type="submit" class="btn-accent">Hifadhi</button></div>
+    </form>
+  </div>
+</div>
+<script>
+function openEditExp(id, dt, br, cat, desc, curr, amt, src) {
+  document.getElementById('ee_id').value = id;
+  document.getElementById('ee_dt').value = dt;
+  document.getElementById('ee_br').value = br;
+  document.getElementById('ee_cat').value = cat;
+  document.getElementById('ee_desc').value = desc;
+  document.getElementById('ee_curr').value = curr;
+  document.getElementById('ee_amt').value = amt;
+  document.getElementById('ee_src').value = src;
+  openModal('editExpModal');
+}
+</script>
+{% endblock %}

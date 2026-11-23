@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="topbar"><h1>Settings – NON-IATA Service Charge</h1></div>
+<div class="card" style="max-width:720px">
+  <h3>Weka kiwango cha Service Charge</h3>
+  <p>Viwango hivi vitatumika moja kwa moja unaporekodi tiketi mpya za NON-IATA. Tiketi za WORKING CLIENT hazitaathirika.</p>
+  <form method="POST" class="form-grid">
+    <div><label>NON-IATA Service Charge (TZS)</label><input type="number" name="fee_tzs" min="0" step="0.01" value="{{ fee_tzs }}" required></div>
+    <div><label>NON-IATA Service Charge (USD)</label><input type="number" name="fee_usd" min="0" step="0.01" value="{{ fee_usd }}" required></div>
+    <div><button type="submit">Hifadhi Mabadiliko</button></div>
+  </form>
+  <small>Ni Admin au Boss pekee anayeruhusiwa kubadilisha viwango hivi.</small>
+</div>
+{% endblock %}

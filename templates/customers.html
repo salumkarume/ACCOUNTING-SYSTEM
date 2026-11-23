@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="topbar"><h1>06. Customer Accounts & Debt Management (Wateja wa Mkopo)</h1><button type="button" class="btn-print no-print" onclick="window.print()">🖨️ Print Ukurasa</button></div>
+
+<div class="grid-2">
+  <div class="card">
+    <h3>Sajili Mteja Mpya</h3>
+    <form method="POST" class="form-grid">
+      <input type="hidden" name="action" value="add_customer">
+      <div><label>Jina la Mteja / Kampuni</label><input type="text" name="name" required></div>
+      <div><label>Aina</label><select name="category"><option value="IATA">IATA</option><option value="NON-IATA">NON-IATA</option><option value="WALKING">WALKING</option><option value="CORPORATE">CORPORATE</option></select></div>
+      <div><label>Simu</label><input type="text" name="phone"></div>
+      <div><label>Email</label><input type="email" name="email"></div>
+      <div><label>Tawi</label><select name="branch"><option value="DAR">DAR</option><option value="UNGUJA">ZANZIBAR</option></select></div>
+      <div><label>Credit Limit</label><input type="number" step="0.01" name="credit_limit" value="0"></div>
+      <div><label>Deni la Awali (TZS)</label><input type="number" step="0.01" name="opening_debt_tzs" value="0"></div>
+      <div><label>Deni la Awali (USD)</label><input type="number" step="0.01" name="opening_debt_usd" value="0"></div>
+      <div><button type="submit">Ongeza Mteja</button></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>Rekodi Malipo ya Deni la Mteja</h3>
+    <form method="POST" class="form-grid">
+      <input type="hidden" name="action" value="record_payment">
+      <div><label>Tarehe</label><input type="date" name="payment_date" value="{{ today }}" required></div>
+      <div><label>Mteja</label>
+        <select name="customer_id" id="pay_customer_select" onchange="loadCustomerLiveInfo(this.value)" required>
+          <option value="">-- Chagua Mteja --</option>
+          {% for c in customers %}
+          <option value="{{ c.id }}"
+                  data-debt-tzs="{{ c.debt_tzs }}"
+                  data-debt-usd="{{ c.debt_usd }}"
+                  data-branch="{{ c.branch }}"
+                  data-phone="{{ c.phone or '' }}"
+                  data-cat="{{ c.category }}">
+            {{ c.name }} (Deni: TZS {{ "{:,.0f}".format(c.debt_tzs) }} | USD {{ "{:,.2f}".format(c.debt_usd) }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div id="live_customer_box" style="grid-column: 1 / -1; background:#f0f9ff; border:1px solid #bae6fd; padding:10px 12px; border-radius:6px; font-size:12.5px; display:none;">
+        <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+          <span><strong>Mteja:</strong> <span id="lc_name"></span> (<span id="lc_cat"></span>) • <strong>Simu:</strong> <span id="lc_phone"></span></span>
+          <span><strong>Tawi:</strong> <span id="lc_branch"></span></span>
+        </div>
+        <div style="margin-top:6px; display:flex; gap:18px; font-weight:700;">
+          <span style="color:#dc2626;">Deni TZS: <span id="lc_tzs">0.00</span></span>
+          <span style="color:#dc2626;">Deni USD: <span id="lc_usd">0.00</span></span>
+          <span style="color:#0f766e;">Credit TZS: <span id="lc_credit_tzs">0.00</span></span>
+          <span style="color:#0f766e;">Credit USD: <span id="lc_credit_usd">0.00</span></span>
+        </div>
+      </div>
+      <div><label>Tiketi Maalum (Hiari)</label>
+        <select name="ticket_id" id="pay_ticket_select">
+          <option value="">-- Auto-allocate (Punguza Deni lote FIFO) --</option>
+          {% for t in unpaid_tickets %}
+          <option value="{{ t.id }}" data-cust="{{ t.customer_id or '' }}">
+            {{ t.ticket_number }} - {{ t.customer_name or t.passenger_name }} (Due: {{ t.currency }} {{ "{:,.2f}".format(t.total_selling - t.amount_paid) }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div><label>Tawi</label><select name="branch" id="pay_branch_select"><option value="DAR">DAR</option><option value="UNGUJA">ZANZIBAR</option></select></div>
+      <div><label>Sarafu</label><select name="currency" id="pay_currency_select"><option value="TZS">TZS</option><option value="USD">USD</option></select></div>
+      <div><label>Kiasi Alicholipa</label><input type="number" step="0.01" name="amount" required></div>
+      <div><label>Njia</label><select name="payment_method"><option value="BANK">BANK</option><option value="CASH">CASH</option><option value="LIPA_NAMBA">LIPA NAMBA</option></select></div>
+      <div><label>Reference</label><input type="text" name="reference"></div>
+      <div><button type="submit" class="btn-accent">Pokea Malipo</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h3>Wateja Unaowadai & Salio Lao</h3>
+    <button type="button" class="btn-sm btn-accent no-print" onclick="printSection('customer-list-print')">🖨️ Print Orodha ya Wateja</button>
+  </div>
+  <div id="customer-list-print">
+  <table>
+    <thead><tr><th>ID</th><th>Mteja</th><th>Aina</th><th>Tawi</th><th>Simu</th><th class="num">Deni (TZS)</th><th class="num">Deni (USD)</th><th class="num">Credit (TZS)</th><th class="num">Credit (USD)</th><th class="no-print">Actions</th></tr></thead>
+    <tbody>
+      {% for c in customers %}
+      <tr>
+        <td>#{{ c.id }}</td>
+        <td><strong>{{ c.name }}</strong></td>
+        <td>{{ c.category }}</td>
+        <td>{{ 'ZANZIBAR' if c.branch == 'UNGUJA' else c.branch }}</td>
+        <td>{{ c.phone }}</td>
+        <td class="num" style="color:{{ '#dc2626' if c.debt_tzs > 0 else '#16a34a' }};"><strong>{{ "{:,.2f}".format(c.debt_tzs) }}</strong></td>
+        <td class="num" style="color:{{ '#dc2626' if c.debt_usd > 0 else '#16a34a' }};"><strong>{{ "{:,.2f}".format(c.debt_usd) }}</strong></td>
+        <td class="num" style="color:#0f766e;"><strong>{{ "{:,.2f}".format(c.credit_tzs or 0) }}</strong></td>
+        <td class="num" style="color:#0f766e;"><strong>{{ "{:,.2f}".format(c.credit_usd or 0) }}</strong></td>
+        <td class="actions-cell">
+          <a class="btn-sm btn-accent no-print" href="{{ url_for('customer_statement', cid=c.id) }}" target="_blank">🖨️ Statement</a>
+          <button type="button" class="btn-sm btn-accent no-print" onclick="selectCustomerForPayment('{{ c.id }}')">Pokea Deni</button>
+          <button type="button" class="btn-sm btn-warning no-print" onclick="openEditCust('{{ c.id }}','{{ c.name|e }}','{{ c.category }}','{{ c.phone|e }}','{{ c.email|e }}','{{ c.branch }}','{{ c.credit_limit }}','{{ c.opening_debt_tzs or 0 }}','{{ c.opening_debt_usd or 0 }}')">Edit</button>
+          <form method="POST" onsubmit="return askDeleteConfirm(this, 'Una uhakika unataka kufuta mteja huyu?');">
+            <input type="hidden" name="scroll_y" value="0">
+            <input type="hidden" name="action" value="delete_customer">
+            <input type="hidden" name="customer_id" value="{{ c.id }}">
+            <button type="submit" class="btn-sm btn-danger no-print">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+    <h3>Historia ya Malipo ya Madeni ya Wateja</h3>
+    <button type="button" class="btn-sm btn-accent no-print" onclick="printSection('customer-payments-print')">🖨️ Print Historia ya Malipo</button>
+  </div>
+  <div id="customer-payments-print">
+  <table>
+    <thead><tr><th>Tarehe</th><th>Mteja</th><th>Tiketi</th><th>Njia</th><th>Ref</th><th class="num">Kiasi</th><th class="no-print">Actions</th></tr></thead>
+    <tbody>
+      {% for p in payments %}
+      <tr>
+        <td>{{ p.payment_date }}</td>
+        <td><strong>{{ p.customer_name }}</strong></td>
+        <td>{{ p.ticket_number or 'Auto / Opening Debt' }}</td>
+        <td><span class="badge b-blue">{{ p.payment_method }}</span></td>
+        <td>{{ p.reference }}</td>
+        <td class="num" style="color:#16a34a;"><strong>{{ p.currency }} {{ "{:,.2f}".format(p.amount) }}</strong></td>
+        <td class="actions-cell">
+          <button type="button" class="btn-sm btn-warning no-print" onclick="openEditPayment('{{ p.id }}','{{ p.payment_date }}','{{ p.customer_id }}','{{ p.ticket_id or '' }}','{{ p.branch }}','{{ p.currency }}','{{ p.amount }}','{{ p.payment_method }}','{{ p.reference|e }}','{{ p.notes|e }}')">Edit</button>
+          <form method="POST" onsubmit="return askDeleteConfirm(this, 'Futa malipo haya? Deni litarejeshwa na credit itapunguzwa kulingana na mgawanyo wa malipo.');">
+            <input type="hidden" name="scroll_y" value="0">
+            <input type="hidden" name="action" value="delete_payment">
+            <input type="hidden" name="payment_id" value="{{ p.id }}">
+            <button type="submit" class="btn-sm btn-danger no-print">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7">Hakuna malipo ya madeni yaliyorekodiwa bado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<div id="editCustModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header"><h3>Edit Customer</h3><button type="button" class="btn btn-sm" style="background:#64748b;" onclick="closeModal(this.closest('.modal-backdrop').id)">← Rudi Nyuma</button></div>
+    <form method="POST" class="form-grid">
+      <input type="hidden" name="action" value="edit_customer">
+      <input type="hidden" name="customer_id" id="ecust_id">
+      <div><label>Jina</label><input type="text" name="name" id="ecust_name" required></div>
+      <div><label>Aina</label><select name="category" id="ecust_cat"><option value="IATA">IATA</option><option value="NON-IATA">NON-IATA</option><option value="WALKING">WALKING</option><option value="CORPORATE">CORPORATE</option></select></div>
+      <div><label>Simu</label><input type="text" name="phone" id="ecust_ph"></div>
+      <div><label>Email</label><input type="email" name="email" id="ecust_em"></div>
+      <div><label>Tawi</label><select name="branch" id="ecust_br"><option value="DAR">DAR</option><option value="UNGUJA">ZANZIBAR</option></select></div>
+      <div><label>Credit Limit</label><input type="number" step="0.01" name="credit_limit" id="ecust_lim"></div>
+      <div><label>Deni la Awali (TZS)</label><input type="number" step="0.01" name="opening_debt_tzs" id="ecust_otzs"></div>
+      <div><label>Deni la Awali (USD)</label><input type="number" step="0.01" name="opening_debt_usd" id="ecust_ousd"></div>
+      <div><button type="submit" class="btn-accent">Hifadhi</button></div>
+    </form>
+  </div>
+</div>
+
+<div id="editPaymentModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header"><h3>Edit Malipo ya Mteja</h3><button type="button" class="btn btn-sm" style="background:#64748b;" onclick="closeModal('editPaymentModal')">← Rudi Nyuma</button></div>
+    <form method="POST" class="form-grid">
+      <input type="hidden" name="action" value="edit_payment"><input type="hidden" name="payment_id" id="epay_id">
+      <input type="hidden" name="scroll_y" id="epay_scroll">
+      <div><label>Tarehe</label><input type="date" name="payment_date" id="epay_date" required></div>
+      <div><label>Tiketi Maalum (Hiari)</label><select name="ticket_id" id="epay_ticket"><option value="">Auto-allocate deni lote</option>{% for t in all_customer_tickets %}<option value="{{ t.id }}" data-cust="{{ t.customer_id }}">{{ t.ticket_number }} - {{ t.passenger_name }} ({{ t.currency }})</option>{% endfor %}</select></div>
+      <div><label>Tawi</label><select name="branch" id="epay_branch"><option>DAR</option><option>ZANZIBAR</option></select></div>
+      <div><label>Sarafu</label><select name="currency" id="epay_currency"><option>TZS</option><option>USD</option></select></div>
+      <div><label>Kiasi</label><input type="number" step="0.01" min="0.01" name="amount" id="epay_amount" required></div>
+      <div><label>Njia</label><select name="payment_method" id="epay_method"><option>BANK</option><option>CASH</option><option>LIPA_NAMBA</option></select></div>
+      <div><label>Reference</label><input name="reference" id="epay_ref"></div>
+      <div><label>Maelezo</label><input name="notes" id="epay_notes"></div>
+      <div><button type="submit" class="btn-accent">Hifadhi Mabadiliko</button></div>
+    </form>
+  </div>
+</div>
+
+<style>
+@media print {
+  body { background:#fff !important; }
+  .sidebar, .nav-back-bar, #flash-container, .no-print, #editCustModal { display:none !important; }
+  .main { margin:0 !important; padding:0 !important; }
+  .card { box-shadow:none !important; border:0 !important; page-break-inside:avoid; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { border:1px solid #999 !important; padding:6px !important; color:#111 !important; }
+}
+</style>
+<script>
+// Rudisha ukurasa sehemu ileile baada ya kufuta mteja au malipo.
+document.addEventListener('DOMContentLoaded', function () {
+  const savedY = Number(new URLSearchParams(window.location.search).get('scroll_y'));
+  if (Number.isFinite(savedY) && savedY > 0) {
+    requestAnimationFrame(() => window.scrollTo(0, savedY));
+  }
+});
+
+function printSection(id) {
+  const section = document.getElementById(id);
+  if (!section) return;
+  const w = window.open('', '_blank', 'width=1000,height=750');
+  if (!w) { window.print(); return; }
+  const logoUrl = {{ url_for('static', filename='images/logo.png')|tojson }};
+  w.document.write('<!doctype html><html><head><title>Hawaii Customer Report</title><style>@page{size:auto;margin:14mm}body{font:13px Arial,sans-serif;color:#111;padding:0}.print-head{display:flex;align-items:center;justify-content:center;gap:18px;border-bottom:2px solid #17364d;padding-bottom:12px;margin-bottom:18px}.print-head img{max-width:115px;max-height:75px;object-fit:contain}.print-head h2{margin:0 0 5px;text-align:left;font-size:18px}.print-head p{margin:0;font-size:11px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #888;padding:7px;text-align:left}th{background:#eee}.num{text-align:right}button,form,.no-print{display:none!important}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body><header class="print-head"><img src="' + logoUrl + '" alt="Hawaii logo"><div><h2>HAWAII TRAVEL AGENCY COMPANY LIMITED</h2><p>IATA Accredited Travel &amp; Tour Agency • DAR &amp; ZANZIBAR</p><p>CUSTOMER REPORT</p></div></header>' + section.innerHTML + '</body></html>');
+  w.document.close(); w.focus();
+  const logo = w.document.querySelector('.print-head img');
+  if (logo && !logo.complete) logo.onload = () => w.print(); else w.print();
+}
+function openEditCust(id, nm, cat, ph, em, br, lim, otzs, ousd) {
+  document.getElementById('ecust_id').value = id;
+  document.getElementById('ecust_name').value = nm;
+  document.getElementById('ecust_cat').value = cat;
+  document.getElementById('ecust_ph').value = ph;
+  document.getElementById('ecust_em').value = em;
+  document.getElementById('ecust_br').value = br;
+  document.getElementById('ecust_lim').value = lim;
+  document.getElementById('ecust_otzs').value = otzs;
+  document.getElementById('ecust_ousd').value = ousd;
+  openModal('editCustModal');
+}
+
+function openEditPayment(id, dt, cid, tid, branch, currency, amount, method, ref, notes) {
+  document.getElementById('epay_id').value=id; document.getElementById('epay_date').value=dt;
+  document.getElementById('epay_ticket').value=tid || ''; document.getElementById('epay_branch').value=branch;
+  document.getElementById('epay_currency').value=currency; document.getElementById('epay_amount').value=amount;
+  document.getElementById('epay_method').value=method; document.getElementById('epay_ref').value=ref || '';
+  document.getElementById('epay_notes').value=notes || '';
+  document.getElementById('epay_scroll').value=window.scrollY; openModal('editPaymentModal');
+}
+document.addEventListener('submit', function(e) {
+  const form=e.target; const scroll=form.querySelector('input[name="scroll_y"]');
+  if(scroll && (!scroll.value || scroll.value==='0')) scroll.value=String(window.scrollY);
+});
+
+function selectCustomerForPayment(cid) {
+  const sel = document.getElementById('pay_customer_select');
+  sel.value = cid;
+  loadCustomerLiveInfo(cid);
+  sel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function loadCustomerLiveInfo(cid) {
+  const box = document.getElementById('live_customer_box');
+  const ticketSel = document.getElementById('pay_ticket_select');
+  Array.from(ticketSel.options).forEach(opt => {
+    if (!opt.value) return;
+    const c = opt.getAttribute('data-cust');
+    opt.style.display = (!cid || c === String(cid)) ? '' : 'none';
+  });
+  ticketSel.value = '';
+
+  if (!cid) {
+    box.style.display = 'none';
+    return;
+  }
+  fetch('/api/customer/' + cid)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) return;
+      document.getElementById('lc_name').textContent = data.name;
+      document.getElementById('lc_cat').textContent = data.category;
+      document.getElementById('lc_phone').textContent = data.phone || 'N/A';
+      document.getElementById('lc_branch').textContent = data.branch;
+      document.getElementById('lc_tzs').textContent = 'TZS ' + Number(data.debt_tzs).toLocaleString('en-US', {minimumFractionDigits:2});
+      document.getElementById('lc_usd').textContent = 'USD ' + Number(data.debt_usd).toLocaleString('en-US', {minimumFractionDigits:2});
+      document.getElementById('lc_credit_tzs').textContent = 'TZS ' + Number(data.credit_balance_tzs || 0).toLocaleString('en-US', {minimumFractionDigits:2});
+      document.getElementById('lc_credit_usd').textContent = 'USD ' + Number(data.credit_balance_usd || 0).toLocaleString('en-US', {minimumFractionDigits:2});
+      document.getElementById('pay_branch_select').value = data.branch || 'DAR';
+      if (Number(data.debt_usd) > 0 && Number(data.debt_tzs) === 0) {
+        document.getElementById('pay_currency_select').value = 'USD';
+      } else {
+        document.getElementById('pay_currency_select').value = 'TZS';
+      }
+      box.style.display = 'block';
+    });
+}
+</script>
+{% endblock %}

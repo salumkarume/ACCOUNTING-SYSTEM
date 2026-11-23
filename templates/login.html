@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Hawaii Travel Agency Company Limited</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    body { justify-content: center; align-items: center; background: #09283f; padding: 16px; }
+    .login-card { width: 100%; max-width: 400px; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 14px 30px rgba(0,0,0,0.3); }
+    .login-logo { text-align: center; margin-bottom: 14px; }
+    .login-logo img { max-width: 220px; max-height: 85px; object-fit: contain; }
+    .login-card h2 { color: #09283f; margin-bottom: 4px; font-size: 19px; text-align: center; }
+    .login-card p { color: #64748b; font-size: 12.5px; text-align: center; margin-bottom: 20px; }
+    .field { margin-bottom: 14px; }
+    .login-card button { width: 100%; padding: 10px; font-size: 14px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Hawaii Travel Agency Company Limited">
+    </div>
+    <h2>HAWAII TRAVEL AGENCY COMPANY LTD</h2>
+    <p>IATA Accounting & Reconciliation System (v4)</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat, msg in messages %}
+          <div class="alert alert-{{ cat }}">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    <form method="POST">
+      <div class="field">
+        <label>Username</label>
+        <input type="text" name="username" required autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" name="password" required>
+      </div>
+      <button type="submit">Ingia Kwenye Mfumo</button>
+    </form>
+    <p style="margin-top:14px;margin-bottom:0"><a href="{{ url_for('forgot_password') }}">Umesahau password?</a></p>
+  </div>
+</body>
+</html>

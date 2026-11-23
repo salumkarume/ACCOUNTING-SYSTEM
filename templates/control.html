@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="topbar"><h1>12. Daily Closing, Staff Accountability & Control Center</h1></div>
+<div class="grid-4">
+ <div class="card"><div class="stat-label">Pending Expense Approvals</div><div class="stat-val">{{ pending }}</div><a href="{{ url_for('expenses_management') }}">Fungua approvals</a></div>
+ <div class="card"><div class="stat-label">Advances zaidi ya siku 7</div><div class="stat-val" style="color:#dc2626">{{ overdue }}</div><a href="{{ url_for('bank_advances') }}">Fuatilia advances</a></div>
+ <div class="card"><div class="stat-label">Bank transactions hazijareconcile</div><div class="stat-val">{{ unreconciled }}</div><a href="{{ url_for('bank_management') }}">Bank reconciliation</a></div>
+ <div class="card"><div class="stat-label">Open Alerts</div><div class="stat-val">{{ alerts|length }}</div></div>
+</div>
+<div class="card">
+ <h3>Daily Cash Closing — DAR / ZANZIBAR</h3>
+ <p>Weka opening cash na cash halisi iliyohesabiwa mwisho wa siku. Mfumo unalinganisha na miamala ya cash ledger ya tarehe hiyo.</p>
+ <form method="POST" class="form-grid">
+  <input type="hidden" name="action" value="submit_closing">
+  <div><label>Tarehe</label><input type="date" name="closing_date" value="{{ today }}" required></div>
+  <div><label>Tawi</label><select name="branch" {% if not privileged %}disabled{% endif %}><option value="DAR" {% if current_branch=='DAR' %}selected{% endif %}>DAR</option><option value="UNGUJA" {% if current_branch=='UNGUJA' %}selected{% endif %}>ZANZIBAR</option></select>{% if not privileged %}<input type="hidden" name="branch" value="{{ current_branch }}">{% endif %}</div>
+  <div><label>Sarafu</label><select name="currency"><option>TZS</option><option>USD</option></select></div>
+  <div><label>Opening Cash</label><input type="number" min="0" step="0.01" name="opening_cash" required></div>
+  <div><label>Cash Counted (iliyohesabiwa)</label><input type="number" min="0" step="0.01" name="counted_cash" required></div>
+  <div><label>Maelezo / sababu ya tofauti</label><input name="notes"></div>
+  <div><button type="submit">Submit Daily Closing</button></div>
+ </form>
+</div>
+<div class="card"><h3>Daily Closing History</h3><table><thead><tr><th>Tarehe</th><th>Tawi</th><th>Sarafu</th><th class="num">Expected</th><th class="num">Counted</th><th class="num">Tofauti</th><th>Status</th><th>Aliye-submit / Reviewer</th><th></th></tr></thead><tbody>
+{% for c in closings %}<tr><td>{{ c.closing_date }}</td><td>{{ 'ZANZIBAR' if c.branch == 'UNGUJA' else c.branch }}</td><td>{{ c.currency }}</td><td class="num">{{ "{:,.2f}".format(c.expected_cash) }}</td><td class="num">{{ "{:,.2f}".format(c.counted_cash) }}</td><td class="num" style="color:{{ '#dc2626' if c.variance|abs > 0.01 else '#16a34a' }}">{{ "{:,.2f}".format(c.variance) }}</td><td>{{ c.status }}</td><td>{{ c.submitted_by }} / {{ c.reviewed_by or '-' }}</td><td>{% if privileged and c.status=='SUBMITTED' %}<form method="POST"><input type="hidden" name="action" value="review_closing"><input type="hidden" name="closing_id" value="{{ c.id }}"><button class="btn-sm btn-accent">Review</button></form>{% endif %}</td></tr>{% else %}<tr><td colspan="9">Hakuna closing bado.</td></tr>{% endfor %}
+</tbody></table></div>
+{% if privileged %}<div class="card"><h3>Staff Accountability Summary</h3><p>Hii ni summary ya rekodi zilizoingizwa kwa username; si uthibitisho wa cash iliyopokelewa mpaka ifanyiwe reconciliation.</p><table><thead><tr><th>Username</th><th>Tiketi</th><th class="num">Thamani ya Tiketi</th><th>Matumizi</th><th class="num">Thamani ya Matumizi</th></tr></thead><tbody>{% for x in staff %}<tr><td>{{ x.username }}</td><td>{{ x.ticket_count or 0 }}</td><td class="num">{{ "{:,.2f}".format(x.ticket_value or 0) }}</td><td>{{ x.expense_count or 0 }}</td><td class="num">{{ "{:,.2f}".format(x.expense_value or 0) }}</td></tr>{% else %}<tr><td colspan="5">Hakuna taarifa za staff.</td></tr>{% endfor %}</tbody></table></div>
+<div class="card"><h3>System Alerts</h3><table><thead><tr><th>Tarehe</th><th>Aina</th><th>Ujumbe</th><th>Severity</th><th></th></tr></thead><tbody>{% for a in alerts %}<tr><td>{{ a.created_at }}</td><td>{{ a.alert_type }}</td><td>{{ a.message }}</td><td>{{ a.severity }}</td><td><form method="POST"><input type="hidden" name="action" value="resolve_alert"><input type="hidden" name="alert_id" value="{{ a.id }}"><button class="btn-sm btn-accent">Mark resolved</button></form></td></tr>{% else %}<tr><td colspan="5">Hakuna alert wazi.</td></tr>{% endfor %}</tbody></table></div>
+{% endif %}
+{% if current_role=='admin' %}<div class="card"><h3>Restore Database Backup (Admin pekee)</h3><p><strong>Tahadhari:</strong> Restore hubadilisha database ya sasa. Backup ya database iliyopo itatengenezwa kabla ya restore.</p><form method="POST" action="{{ url_for('restore_backup') }}" enctype="multipart/form-data"><input type="file" name="backup_file" accept=".db" required><button class="btn-danger" type="submit" onclick="return confirm('Una uhakika? Database ya sasa itabadilishwa.')">Restore Backup</button></form></div>{% endif %}
+{% endblock %}

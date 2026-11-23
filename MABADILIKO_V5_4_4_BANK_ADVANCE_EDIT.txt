@@ -1,0 +1,11 @@
+HAWAII ERP V5.4.4 - BANK ADVANCE EDIT
+
+Mabadiliko:
+1. Kwenye 'Watu Wenye Pesa za Kampuni / Salio Bado' kila rekodi sasa ina sehemu ya Edit.
+2. Unaweza kusahihisha tarehe, kiasi kilichotolewa, jina la aliyechukua, sababu/matumizi na bank reference.
+3. Marekebisho yanasawazishwa kwenye bank_transactions iliyounganishwa ili Bank Balance na salio la anayeshikilia pesa vibaki sahihi.
+4. Mfumo unazuia kiasi kipya kuwa chini ya marejesho yaliyokwisha rekodiwa.
+5. Sarafu na tawi haviwezi kubadilishwa kupitia Edit hii ili kuepusha kuhamisha miamala ya ledger kimakosa.
+6. Kila marekebisho yanaandikwa kwenye audit trail.
+
+Hakuna database ya mteja iliyojumuishwa kwenye ZIP. Hifadhi database yako kabla ya kusasisha.

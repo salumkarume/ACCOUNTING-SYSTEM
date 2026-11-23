@@ -1,0 +1,16 @@
+HAWAII ERP V5.3.7 - CUSTOMER PAYMENT EDIT & CREDIT BALANCE
+
+MABADILIKO:
+1. Historia ya malipo ya wateja sasa ina kitufe cha Edit kwa kila malipo.
+2. Edit ya malipo inaruhusu tarehe, tiketi, tawi, sarafu, kiasi, njia na reference/maelezo kubadilishwa.
+3. Malipo mapya yanagawiwa kwa mpangilio: deni la tiketi, deni la awali, kisha salio la ziada linawekwa kama CREDIT ya mteja.
+4. Salio la CREDIT linafuatiliwa tofauti kwa TZS na USD. Orodha ya wateja inaonyesha Deni TZS/USD na Credit TZS/USD.
+5. Kufuta au kuhariri malipo mapya kunarudisha mgawanyo wake kwa usahihi kwa kutumia customer_payment_allocations.
+6. Ledger ya BANK/CASH inasasishwa malipo yanapohaririwa.
+7. Malipo ya zamani (yaliyorekodiwa kabla ya allocation tracking) yanaendelea kuonekana. Edit/Delete hutumia utaratibu wa zamani wa FIFO kwa rekodi hizo; rekodi hizo hazina mgawanyo wa kihistoria wa uhakika.
+8. Database migration huongeza credit_balance_tzs, credit_balance_usd na customer_payment_allocations bila kufuta tables/records zilizopo.
+
+MUHIMU:
+- Hifadhi nakala ya hawaii_travel.db kabla ya kuwasha toleo hili.
+- Mfumo lazima uanzishwe kwa app.py kama kawaida; init_db itaongeza columns/tables mpya.
+- Full Flask live test haikuwezekana katika mazingira haya kwa kuwa Flask/Werkzeug hazijasakinishwa. Python syntax, Jinja template syntax, JavaScript syntax na database migration schema zimekaguliwa.

@@ -1,0 +1,726 @@
+﻿diff --git "a/.\\app.py" "b/..\\app.py"
+index 7716182..790fdf6 100644
+--- "a/.\\app.py"
++++ "b/..\\app.py"
+@@ -268,6 +268,8 @@ def api_customer_info(cid):
+         "email": cust["email"] or "",
+         "branch": cust["branch"],
+         "credit_limit": float(cust["credit_limit"] or 0),
++        "credit_balance_tzs": float(cust["credit_balance_tzs"] or 0),
++        "credit_balance_usd": float(cust["credit_balance_usd"] or 0),
+         "debt_tzs": debt["tzs"],
+         "debt_usd": debt["usd"],
+         "opening_tzs": debt["opening_tzs"],
+@@ -525,6 +527,7 @@ def dashboard():
+ 
+     non_types = ("NON-IATA",)
+     working_types = ("WORKING CLIENT", "WALKING")
++    corporate_types = ("CORPORATE", "CORPORATE CLIENT", "HAWAII CORPORATE")
+     dar_non_tzs = profit_sum(non_types, "DAR", "TZS")
+     dar_non_usd = profit_sum(non_types, "DAR", "USD")
+     unguja_non_tzs = profit_sum(non_types, "UNGUJA", "TZS")
+@@ -533,11 +536,21 @@ def dashboard():
+     dar_work_usd = profit_sum(working_types, "DAR", "USD")
+     unguja_work_tzs = profit_sum(working_types, "UNGUJA", "TZS")
+     unguja_work_usd = profit_sum(working_types, "UNGUJA", "USD")
++    dar_corporate_tzs = profit_sum(corporate_types, "DAR", "TZS")
++    dar_corporate_usd = profit_sum(corporate_types, "DAR", "USD")
++    unguja_corporate_tzs = profit_sum(corporate_types, "UNGUJA", "TZS")
++    unguja_corporate_usd = profit_sum(corporate_types, "UNGUJA", "USD")
++    corporate_profit_tzs = conn.execute(
++        "SELECT COALESCE(SUM(service_charge),0) FROM tickets WHERE REPLACE(REPLACE(UPPER(TRIM(client_type)), ' ', ''), '-', '') IN ('CORPORATE','COPORATE','CORPORATECLIENT','COPORATECLIENT','HAWAIICORPORATE','HAWAIICOPORATE','CORPORATES/FEE','COPORATES/FEE') AND currency='TZS' AND status='ISSUED'"
++    ).fetchone()[0]
++    corporate_profit_usd = conn.execute(
++        "SELECT COALESCE(SUM(service_charge),0) FROM tickets WHERE REPLACE(REPLACE(UPPER(TRIM(client_type)), ' ', ''), '-', '') IN ('CORPORATE','COPORATE','CORPORATECLIENT','COPORATECLIENT','HAWAIICORPORATE','HAWAIICOPORATE','CORPORATES/FEE','COPORATES/FEE') AND currency='USD' AND status='ISSUED'"
++    ).fetchone()[0]
+ 
+-    dar_total_profit_tzs = dar_non_tzs + dar_work_tzs
+-    dar_total_profit_usd = dar_non_usd + dar_work_usd
+-    unguja_total_profit_tzs = unguja_non_tzs + unguja_work_tzs
+-    unguja_total_profit_usd = unguja_non_usd + unguja_work_usd
++    dar_total_profit_tzs = dar_non_tzs + dar_work_tzs + dar_corporate_tzs
++    dar_total_profit_usd = dar_non_usd + dar_work_usd + dar_corporate_usd
++    unguja_total_profit_tzs = unguja_non_tzs + unguja_work_tzs + unguja_corporate_tzs
++    unguja_total_profit_usd = unguja_non_usd + unguja_work_usd + unguja_corporate_usd
+     all_total_profit_tzs = dar_total_profit_tzs + unguja_total_profit_tzs
+     all_total_profit_usd = dar_total_profit_usd + unguja_total_profit_usd
+ 
+@@ -581,10 +594,13 @@ def dashboard():
+         agency_service_usd=agency_service_usd, agency_commission_usd=agency_commission_usd,
+         non_iata_profit_tzs=non_iata_profit_tzs, non_iata_profit_usd=non_iata_profit_usd,
+         working_profit_tzs=working_profit_tzs, working_profit_usd=working_profit_usd,
++        corporate_profit_tzs=corporate_profit_tzs, corporate_profit_usd=corporate_profit_usd,
+         dar_non_tzs=dar_non_tzs, dar_non_usd=dar_non_usd,
+         unguja_non_tzs=unguja_non_tzs, unguja_non_usd=unguja_non_usd,
+         dar_work_tzs=dar_work_tzs, dar_work_usd=dar_work_usd,
+         unguja_work_tzs=unguja_work_tzs, unguja_work_usd=unguja_work_usd,
++        dar_corporate_tzs=dar_corporate_tzs, dar_corporate_usd=dar_corporate_usd,
++        unguja_corporate_tzs=unguja_corporate_tzs, unguja_corporate_usd=unguja_corporate_usd,
+         dar_total_profit_tzs=dar_total_profit_tzs, dar_total_profit_usd=dar_total_profit_usd,
+         unguja_total_profit_tzs=unguja_total_profit_tzs, unguja_total_profit_usd=unguja_total_profit_usd,
+         all_total_profit_tzs=all_total_profit_tzs, all_total_profit_usd=all_total_profit_usd,
+@@ -708,6 +724,45 @@ def bank_advances():
+             conn.commit()
+             conn.close()
+             return redirect(url_for("bank_advances"))
++        elif action == "edit_advance":
++            adv_id = int(request.form.get("advance_id", "0"))
++            adv = conn.execute("SELECT * FROM bank_advances WHERE id=?", (adv_id,)).fetchone()
++            new_date = request.form.get("advance_date", "").strip()
++            new_amount = parse_num(request.form.get("amount"))
++            new_taken_by = request.form.get("taken_by", "").strip()
++            new_purpose = request.form.get("purpose", "").strip()
++            new_reference = request.form.get("reference", "").strip()
++            repaid = conn.execute(
++                "SELECT COALESCE(SUM(amount),0) FROM bank_advance_repayments WHERE advance_id=?",
++                (adv_id,)
++            ).fetchone()[0] if adv else 0
++            if not adv:
++                flash("Rekodi ya pesa iliyotolewa haijapatikana.", "danger")
++            elif not new_date or not new_taken_by or new_amount <= 0:
++                flash("Weka tarehe, jina na kiasi sahihi kabla ya kuhifadhi.", "danger")
++            elif new_amount + 0.00001 < float(repaid):
++                flash("Kiasi kipya hakiwezi kuwa chini ya marejesho yaliyokwisha rekodiwa.", "danger")
++            else:
++                conn.execute("""UPDATE bank_advances
++                    SET advance_date=?, amount=?, taken_by=?, purpose=?, reference=? WHERE id=?""",
++                    (new_date, new_amount, new_taken_by, new_purpose, new_reference, adv_id))
++                # Keep the original linked bank withdrawal in sync so Bank Balance
++                # and the outstanding advance always use the same corrected amount.
++                if adv["bank_transaction_id"]:
++                    conn.execute("""UPDATE bank_transactions SET tx_date=?, reference=?,
++                        description=?, amount_out=? WHERE id=? AND source_module='BANK_ADVANCE' AND source_id=?""",
++                        (new_date, new_reference, f"Pesa alizochukua {new_taken_by}: {new_purpose}",
++                         new_amount, adv["bank_transaction_id"], adv_id))
++                else:
++                    conn.execute("""UPDATE bank_transactions SET tx_date=?, reference=?,
++                        description=?, amount_out=? WHERE source_module='BANK_ADVANCE' AND source_id=?""",
++                        (new_date, new_reference, f"Pesa alizochukua {new_taken_by}: {new_purpose}", new_amount, adv_id))
++                log_audit(conn, session["user_id"], session["username"], "UPDATE", "BANK_ADVANCE", adv_id,
++                          f"Corrected advance for {new_taken_by}: {adv['currency']} {new_amount}")
++                flash("Taarifa za pesa iliyochukuliwa zimehaririwa. Bank Balance na salio la deni vimesasishwa.", "success")
++            conn.commit()
++            conn.close()
++            return redirect(url_for("bank_advances"))
+         elif action == "repay_advance":
+             adv_id = int(request.form["advance_id"])
+             repayment_date = request.form["repayment_date"]
+@@ -874,6 +929,18 @@ def ticket_management():
+             payment_method = request.form["payment_method"]
+             amount_paid = parse_num(request.form.get("amount_paid"))
+ 
++            # CORPORATE tickets must be linked to a pre-registered CORPORATE account.
++            selected_customer = conn.execute("SELECT id, category, branch FROM customers WHERE id=?", (customer_id,)).fetchone() if customer_id else None
++            if client_type == "CORPORATE":
++                if not selected_customer or str(selected_customer["category"]).strip().upper() != "CORPORATE":
++                    flash("Tiketi za CORPORATE zinahitaji kwanza kusajili kampuni kwenye Customer Accounts kama CORPORATE, kisha uchague akaunti yake hapa.", "danger")
++                    conn.close()
++                    return redirect(url_for("ticket_management"))
++            elif customer_id and not selected_customer:
++                flash("Mteja uliyemchagua hajasajiliwa. Tafadhali chagua mteja aliyepo.", "danger")
++                conn.close()
++                return redirect(url_for("ticket_management"))
++
+             # Keep the paid amount consistent with the recalculated selling total.
+             # CREDIT tickets cannot have a direct payment; other methods are capped
+             # at the new total so edits cannot leave an impossible paid balance.
+@@ -973,6 +1040,8 @@ def ticket_management():
+     date_from = request.args.get("date_from", "").strip()
+     date_to = request.args.get("date_to", "").strip()
+     branch_filter = request.args.get("branch", "ALL").strip().upper()
++    currency_filter = request.args.get("currency", "ALL").strip().upper()
++    search_term = request.args.get("q", "").strip()
+     where = []
+     params = []
+     if date_from:
+@@ -984,6 +1053,13 @@ def ticket_management():
+     if branch_filter in ("DAR", "UNGUJA"):
+         where.append("t.branch = ?")
+         params.append(branch_filter)
++    if currency_filter in ("TZS", "USD"):
++        where.append("t.currency = ?")
++        params.append(currency_filter)
++    if search_term:
++        like = f"%{search_term}%"
++        where.append("(t.ticket_number LIKE ? OR t.passenger_name LIKE ? OR c.name LIKE ? OR t.airline LIKE ?)")
++        params.extend([like, like, like, like])
+     where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+     if session.get("role") == "ticket_user":
+         tickets = []
+@@ -1058,18 +1134,20 @@ def _make_branch_ticket_excel(branch, date_from, date_to, tickets, all_branch_ti
+     """Create a printable branch register and currency-safe profit summary."""
+     wb = Workbook()
+     ws = wb.active
+-    ws.title = f"{branch.title()} Ticket Register"
++    ws.title = "DAR+ZANZIBAR REGISTER" if branch == "DAR" else "ZANZIBAR REGISTER"
+ 
+     headers = [
+         "DATE", "CLIENT NAME / PASSENGER", "TICKET NUMBER", "AIRLINE", "ROUTE",
+         "BSP TOTAL AMOUNT\nTZS", "BSP TOTAL AMOUNT\nUSD",
+         "CUSTOMER TOTAL", "PAID",
+-        "HAWAII WORKING CLIENT PROFIT USD", "HAWAII WORKING CLIENT PROFIT TZS",
+-        "NON-IATA S/FEE USD", "NON-IATA S/FEE TZS",
++        "HAWAII WORKING CLIENT S/FEE USD", "HAWAII WORKING CLIENT S/FEE TZS",
++        "HAWAII CORPORATE S/FEE USD", "HAWAII CORPORATE S/FEE TZS",
++        "NON-IATA S/FEE USD", "NON-IATA S/FEE TZS", "BRANCH",
+     ]
++    register_scope = "DAR + ZANZIBAR" if branch == "DAR" else "ZANZIBAR"
+     _excel_title(
+-        ws, len(headers), f"HAWAII TRAVEL AGENCY - {branch} BRANCH TICKET REGISTER",
+-        f"Issued tickets | Period: {date_from or 'All dates'} to {date_to or 'All dates'} | BSP amount excludes service fee"
++        ws, len(headers), f"HAWAII TRAVEL AGENCY - {register_scope} TICKET REGISTER",
++        f"Issued tickets | Included branches: {register_scope} | Period: {date_from or 'All dates'} to {date_to or 'All dates'} | BSP amount excludes service fee"
+     )
+     header_row = 4
+     for col, heading in enumerate(headers, 1):
+@@ -1085,27 +1163,51 @@ def _make_branch_ticket_excel(branch, date_from, date_to, tickets, all_branch_ti
+             return default
+ 
+     def category(row):
++        # Normalize legacy/manual spellings so older CORPORATE records are not
++        # silently dropped from the USD/TZS fee columns or Profit Summary.
+         raw = str(val(row, "client_type", "") or "").strip().upper()
+-        if raw in ("WORKING CLIENT", "WALKING", "HAWAII WORKING CLIENT"):
++        compact = "".join(ch for ch in raw if ch.isalnum())
++        if compact in ("WORKINGCLIENT", "WALKING", "HAWAIIWORKINGCLIENT"):
+             return "WORKING CLIENT"
+-        if raw in ("NON-IATA", "NON-IATA (AGENT)", "NON IATA", "AGENT"):
++        # COPORATE is a known historical misspelling found in older entries.
++        if compact in (
++            "CORPORATE", "COPORATE", "CORPORATECLIENT", "COPORATECLIENT",
++            "HAWAIICORPORATE", "HAWAIICOPORATE", "CORPORATESFEE", "COPORATESFEE",
++        ):
++            return "CORPORATE"
++        if compact in ("NONIATA", "NONIATAAGENT", "AGENT"):
+             return "NON-IATA"
+         return raw
+ 
++    def normalized_currency(row):
++        raw = str(val(row, "currency", "") or "").strip().upper().replace(" ", "")
++        if raw in ("TZS", "TSH", "T.SH", "TANZANIANSHILLING", "TANZANIANSHILLINGS"):
++            return "TZS"
++        if raw in ("USD", "US$", "$", "US DOLLAR", "US DOLLARS"):
++            return "USD"
++        return raw
++
++    def normalized_branch(row):
++        raw = str(val(row, "branch", "") or "").strip().upper()
++        if raw in ("UNGUJA", "ZANZIBAR", "ZNZ"):
++            return "UNGUJA"
++        return raw
++
+     def summarize(rows):
+         out = {"WORKING CLIENT TZS": 0.0, "WORKING CLIENT USD": 0.0,
++               "CORPORATE TZS": 0.0, "CORPORATE USD": 0.0,
+                "NON-IATA TZS": 0.0, "NON-IATA USD": 0.0}
+         for item in rows:
+-            curr = str(val(item, "currency", "") or "").strip().upper()
++            curr = normalized_currency(item)
+             typ = category(item)
+-            if curr in ("TZS", "USD") and typ in ("WORKING CLIENT", "NON-IATA"):
++            if curr in ("TZS", "USD") and typ in ("WORKING CLIENT", "CORPORATE", "NON-IATA"):
+                 out[f"{typ} {curr}"] += float(val(item, "service_charge", 0) or 0)
+-        out["TOTAL PROFIT TZS"] = out["WORKING CLIENT TZS"] + out["NON-IATA TZS"]
+-        out["TOTAL PROFIT USD"] = out["WORKING CLIENT USD"] + out["NON-IATA USD"]
++        out["TOTAL PROFIT TZS"] = out["WORKING CLIENT TZS"] + out["CORPORATE TZS"] + out["NON-IATA TZS"]
++        out["TOTAL PROFIT USD"] = out["WORKING CLIENT USD"] + out["CORPORATE USD"] + out["NON-IATA USD"]
+         return out
+ 
+     for row_no, t in enumerate(tickets, header_row + 1):
+-        currency = str(val(t, "currency", "") or "").upper()
++        currency = normalized_currency(t)
+         typ = category(t)
+         bsp_amount = float(val(t, "net_fare", 0) or 0) + float(val(t, "taxes", 0) or 0)
+         bsp_tzs = bsp_amount if currency == "TZS" else None
+@@ -1113,6 +1215,8 @@ def _make_branch_ticket_excel(branch, date_from, date_to, tickets, all_branch_ti
+         fee = float(val(t, "service_charge", 0) or 0)
+         working_usd = fee if typ == "WORKING CLIENT" and currency == "USD" else None
+         working_tzs = fee if typ == "WORKING CLIENT" and currency == "TZS" else None
++        corporate_usd = fee if typ == "CORPORATE" and currency == "USD" else None
++        corporate_tzs = fee if typ == "CORPORATE" and currency == "TZS" else None
+         agent_usd = fee if typ == "NON-IATA" and currency == "USD" else None
+         agent_tzs = fee if typ == "NON-IATA" and currency == "TZS" else None
+         passenger = val(t, "passenger_name", "") or ""
+@@ -1123,7 +1227,8 @@ def _make_branch_ticket_excel(branch, date_from, date_to, tickets, all_branch_ti
+             bsp_tzs, bsp_usd,
+             float(val(t, "total_selling", 0) or 0),
+             float(val(t, "amount_paid", 0) or 0),
+-            working_usd, working_tzs, agent_usd, agent_tzs
++            working_usd, working_tzs, corporate_usd, corporate_tzs, agent_usd, agent_tzs,
++            "ZANZIBAR" if normalized_branch(t) == "UNGUJA" else normalized_branch(t)
+         ]
+         for col, value in enumerate(values, 1):
+             cell = ws.cell(row_no, col, value)
+@@ -1132,9 +1237,17 @@ def _make_branch_ticket_excel(branch, date_from, date_to, tickets, all_branch_ti
+                 cell.number_format = '#,##0.00;[Red](#,##0.00);-'
+ 
+     last_detail_row = header_row + len(tickets)
++    if not tickets:
++        # Make an empty branch explicit instead of presenting a blank register.
++        ws.merge_cells(start_row=header_row + 1, start_column=1, end_row=header_row + 1, end_column=len(headers))
++        empty_cell = ws.cell(header_row + 1, 1, f"HAKUNA TIKETI ZA {register_scope} KWENYE KIPINDI HIKI.")
++        empty_cell.font = Font(bold=True, italic=True, color="9C0006")
++        empty_cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
++        ws.row_dimensions[header_row + 1].height = 32
++        last_detail_row = header_row + 1
+     total_row = last_detail_row + 1
+-    ws.cell(total_row, 1, "BRANCH TOTAL")
+-    for col in range(6, 14):
++    ws.cell(total_row, 1, f"{register_scope} TOTAL")
++    for col in range(6, 16):
+         letter = get_column_letter(col)
+         ws.cell(total_row, col, f"=SUM({letter}{header_row+1}:{letter}{max(last_detail_row, header_row+1)})" if tickets else 0)
+     for cell in ws[total_row]:
+@@ -1143,60 +1256,153 @@ def _make_branch_ticket_excel(branch, date_from, date_to, tickets, all_branch_ti
+         cell.number_format = '#,##0.00;[Red](#,##0.00);-'
+ 
+     summary_row = total_row + 3
+-    summary_headers = ["PROFIT SUMMARY", "WORKING CLIENT TZS", "WORKING CLIENT USD",
+-                       "NON-IATA TZS", "NON-IATA USD", "TOTAL PROFIT TZS", "TOTAL PROFIT USD"]
++    # Two-level headers: category on the first line, USD/TZS directly below.
++    # Every category receives two equal-width columns so all sheets keep the
++    # same clean, aligned layout without wrapping one currency onto its own line.
++    summary_groups = [
++        (2, 3, "HAWAII WORKING CLIENT S/FEE"),
++        (4, 5, "HAWAII CORPORATE S/FEE"),
++        (6, 7, "NON-IATA S/FEE"),
++        (8, 9, "TOTAL PROFIT"),
++    ]
++    summary_keys = [
++        "WORKING CLIENT USD", "WORKING CLIENT TZS",
++        "CORPORATE USD", "CORPORATE TZS",
++        "NON-IATA USD", "NON-IATA TZS",
++        "TOTAL PROFIT USD", "TOTAL PROFIT TZS",
++    ]
+ 
+     def write_summary_row(row, label, summary, highlight=False):
+         ws.cell(row, 1, label)
+-        for col, key in enumerate(summary_headers[1:], 2):
++        for col, key in enumerate(summary_keys, 2):
+             ws.cell(row, col, summary[key])
+-        for cell in ws[row][:len(summary_headers)]:
+-            cell.font = Font(bold=True)
++        for cell in ws[row][:9]:
++            cell.font = Font(bold=True, size=11)
+             cell.fill = PatternFill("solid", fgColor="C6E0B4" if highlight else "E2F0D9")
++            cell.alignment = Alignment(horizontal="center" if cell.column > 1 else "left", vertical="center")
+             if cell.column > 1:
+                 cell.number_format = '#,##0.00;[Red](#,##0.00);-'
+ 
+-    for col, heading in enumerate(summary_headers, 1):
+-        c = ws.cell(summary_row, col, heading)
+-        c.font = Font(bold=True, color="FFFFFF")
++    ws.merge_cells(start_row=summary_row, start_column=1, end_row=summary_row + 1, end_column=1)
++    title_cell = ws.cell(summary_row, 1, "PROFIT SUMMARY")
++    title_cell.font = Font(bold=True, color="FFFFFF", size=11)
++    title_cell.fill = PatternFill("solid", fgColor="4472C4")
++    title_cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
++    for first_col, last_col, heading in summary_groups:
++        ws.merge_cells(start_row=summary_row, start_column=first_col, end_row=summary_row, end_column=last_col)
++        c = ws.cell(summary_row, first_col, heading)
++        c.font = Font(bold=True, color="FFFFFF", size=11)
+         c.fill = PatternFill("solid", fgColor="4472C4")
+-        c.alignment = Alignment(horizontal="center", wrap_text=True)
+-
+-    branch_rows = [r for r in all_branch_tickets if str(val(r, "branch", "") or "").upper() == branch]
+-    write_summary_row(summary_row + 1, f"{branch} PROFIT", summarize(branch_rows))
++        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True, shrink_to_fit=True)
++        for col, currency in ((first_col, "USD"), (last_col, "TZS")):
++            sub = ws.cell(summary_row + 1, col, currency)
++            sub.font = Font(bold=True, color="FFFFFF", size=11)
++            sub.fill = PatternFill("solid", fgColor="4472C4")
++            sub.alignment = Alignment(horizontal="center", vertical="center")
++
++    ws.row_dimensions[summary_row].height = 28
++    ws.row_dimensions[summary_row + 1].height = 22
++    branch_rows = [r for r in all_branch_tickets if normalized_branch(r) == branch]
++    branch_display = "ZANZIBAR" if branch == "UNGUJA" else branch
++    write_summary_row(summary_row + 2, f"{branch_display} PROFIT", summarize(branch_rows))
+     if branch == "DAR":
+-        unguja_rows = [r for r in all_branch_tickets if str(val(r, "branch", "") or "").upper() == "UNGUJA"]
+-        write_summary_row(summary_row + 2, "UNGUJA PROFIT", summarize(unguja_rows))
+-        write_summary_row(summary_row + 3, "TOTAL COMPANY PROFIT (DAR + UNGUJA)",
++        unguja_rows = [r for r in all_branch_tickets if normalized_branch(r) == "UNGUJA"]
++        write_summary_row(summary_row + 3, "ZANZIBAR PROFIT", summarize(unguja_rows))
++        write_summary_row(summary_row + 4, "TOTAL COMPANY PROFIT (DAR + ZANZIBAR)",
+                           summarize(all_branch_tickets), highlight=True)
+ 
+     from openpyxl.styles import Border, Side
+     thin = Side(style="thin", color="B7B7B7")
+-    final_row = summary_row + (3 if branch == "DAR" else 1)
+-    for row in ws.iter_rows(min_row=header_row, max_row=final_row, max_col=max(len(headers), len(summary_headers))):
++    final_row = summary_row + (4 if branch == "DAR" else 2)
++    for row in ws.iter_rows(min_row=header_row, max_row=final_row, max_col=max(len(headers), 9)):
+         for cell in row:
+             cell.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+-    widths = [14, 34, 23, 13, 20, 22, 22, 20, 16, 25, 25, 20, 20]
++    widths = [14, 34, 23, 13, 20, 22, 22, 20, 16, 27, 27, 25, 25, 20, 20, 14]
+     for col, width in enumerate(widths, 1):
+         ws.column_dimensions[get_column_letter(col)].width = width
++    # Summary uses identical widths for each USD/TZS pair on both branch exports.
++    ws.column_dimensions["A"].width = 30
++    for col in range(2, 10):
++        ws.column_dimensions[get_column_letter(col)].width = 22
+     ws.row_dimensions[header_row].height = 48
+     ws.freeze_panes = "A5"
+     ws.sheet_view.showGridLines = False
+-    ws.auto_filter.ref = f"A{header_row}:M{max(last_detail_row, header_row)}"
++    ws.auto_filter.ref = f"A{header_row}:P{max(last_detail_row, header_row)}"
+     ws.sheet_properties.pageSetUpPr.fitToPage = True
+     ws.page_setup.orientation = "landscape"
+     ws.page_setup.paperSize = ws.PAPERSIZE_A3
+     ws.page_setup.fitToWidth = 1
+     ws.page_setup.fitToHeight = 0
+     ws.print_title_rows = "1:4"
+-    ws.print_area = f"A1:M{final_row}"
++    ws.print_area = f"A1:P{final_row}"
+     ws.sheet_view.zoomScale = 85
+     return wb
+ 
+ 
++def _add_all_branch_tickets_sheet(wb, date_from, date_to, tickets):
++    """Add a transparent detail listing so company-wide totals can be traced to tickets."""
++    ws = wb.create_sheet("ALL BRANCH TICKETS")
++    headers = [
++        "DATE", "BRANCH", "CLIENT NAME / PASSENGER", "TICKET NUMBER", "AIRLINE", "ROUTE",
++        "CURRENCY", "BSP TOTAL AMOUNT", "CUSTOMER TOTAL", "PAID", "BALANCE",
++        "CLIENT TYPE", "SERVICE FEE", "COMMISSION", "STATUS"
++    ]
++    _excel_title(ws, len(headers), "HAWAII TRAVEL AGENCY - ALL BRANCH TICKET DETAILS",
++                 f"Issued tickets | Period: {date_from or 'All dates'} to {date_to or 'All dates'}")
++    for col, heading in enumerate(headers, 1):
++        c = ws.cell(4, col, heading)
++        c.font = Font(bold=True, color="FFFFFF")
++        c.fill = PatternFill("solid", fgColor="4472C4")
++        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
++
++    def val(row, key, default=None):
++        try:
++            return row[key]
++        except (KeyError, IndexError, TypeError):
++            return default
++
++    for row_no, t in enumerate(tickets, 5):
++        currency = str(val(t, "currency", "") or "").upper()
++        bsp = float(val(t, "net_fare", 0) or 0) + float(val(t, "taxes", 0) or 0)
++        total = float(val(t, "total_selling", 0) or 0)
++        paid = float(val(t, "amount_paid", 0) or 0)
++        values = [
++            val(t, "ticket_date", ""), str(val(t, "branch", "") or "").strip().upper(),
++            f"{val(t, 'customer_name', '') or 'Walk-in'} / {val(t, 'passenger_name', '') or ''}",
++            val(t, "ticket_number", ""), val(t, "airline", ""), val(t, "route", ""), currency,
++            bsp, total, paid, total - paid, val(t, "client_type", ""),
++            float(val(t, "service_charge", 0) or 0), float(val(t, "commission", 0) or 0),
++            val(t, "status", "")
++        ]
++        for col, value in enumerate(values, 1):
++            cell = ws.cell(row_no, col, value)
++            cell.alignment = Alignment(vertical="center")
++            if col in (8, 9, 10, 11, 13, 14):
++                cell.number_format = '#,##0.00;[Red](#,##0.00);-'
++    if not tickets:
++        ws.merge_cells("A5:O5")
++        ws["A5"] = "Hakuna tiketi zilizotolewa kwenye kipindi kilichochaguliwa."
++        ws["A5"].alignment = Alignment(horizontal="center")
++    widths = [14, 14, 34, 22, 14, 20, 12, 20, 20, 18, 18, 20, 18, 18, 14]
++    for col, width in enumerate(widths, 1):
++        ws.column_dimensions[get_column_letter(col)].width = width
++    ws.freeze_panes = "A5"
++    ws.auto_filter.ref = f"A4:O{max(5, 4 + len(tickets))}"
++    ws.sheet_view.showGridLines = False
++    ws.sheet_properties.pageSetUpPr.fitToPage = True
++    ws.page_setup.orientation = "landscape"
++    ws.page_setup.fitToWidth = 1
++    ws.page_setup.fitToHeight = 0
++    ws.print_title_rows = "1:4"
++    ws.print_area = f"A1:O{max(5, 4 + len(tickets))}"
++
++
+ def _export_branch_excel(branch):
+     date_from, date_to, where, params = _ticket_export_filters(request)
+-    # Keep SQL clauses in a valid order: WHERE predicates first, then ORDER BY.
++    # Normalize status in SQL so older records with different capitalization or
++    # accidental surrounding spaces are not silently omitted from the export.
++    where = [clause for clause in where if clause != "t.status = 'ISSUED'"]
++    where.append("TRIM(UPPER(COALESCE(t.status, ''))) = 'ISSUED'")
+     where_sql = " AND ".join(where) if where else "1=1"
+     conn = get_db()
+     try:
+@@ -1207,8 +1413,14 @@ def _export_branch_excel(branch):
+         ).fetchall()
+     finally:
+         conn.close()
+-    branch_tickets = [t for t in all_tickets if str(t["branch"] or "").strip().upper() == branch]
+-    wb = _make_branch_ticket_excel(branch, date_from, date_to, branch_tickets, all_tickets)
++    # Business rule: DAR export is the single-sheet consolidated company
++    # register (DAR + ZANZIBAR); the ZANZIBAR export contains ZANZIBAR only.
++    branch_tickets = [
++        t for t in all_tickets
++        if str(t["branch"] or "").strip().upper() == branch
++    ]
++    detail_tickets = all_tickets if branch == "DAR" else branch_tickets
++    wb = _make_branch_ticket_excel(branch, date_from, date_to, detail_tickets, all_tickets)
+     return _excel_response(wb, f"hawaii_{branch.lower()}_ticket_register_{date.today().isoformat()}.xlsx")
+ 
+ 
+@@ -1381,6 +1593,70 @@ def bsp_reconciliation():
+         out_usd=sys_iata_usd - paid_bsp_usd, out_tzs=sys_iata_tzs - paid_bsp_tzs
+     )
+ 
++def apply_customer_payment_allocations(conn, payment_id, customer_id, ticket_id, currency, amount):
++    """Allocate a payment to ticket debt, opening debt, then customer credit."""
++    rem = float(amount)
++    cust = conn.execute("SELECT * FROM customers WHERE id=?", (customer_id,)).fetchone()
++    if not cust:
++        raise ValueError("Mteja hajapatikana.")
++
++    def allocate_ticket(t):
++        nonlocal rem
++        due = max(0.0, float(t["total_selling"] or 0) - float(t["amount_paid"] or 0))
++        part = min(rem, due)
++        if part > 0:
++            paid = float(t["amount_paid"] or 0) + part
++            status = "PAID" if paid >= float(t["total_selling"] or 0) else "PARTIAL"
++            conn.execute("UPDATE tickets SET amount_paid=?, payment_status=? WHERE id=?", (paid, status, t["id"]))
++            conn.execute("INSERT INTO customer_payment_allocations (payment_id, allocation_type, ticket_id, amount) VALUES (?, 'TICKET', ?, ?)", (payment_id, t["id"], part))
++            rem -= part
++
++    if ticket_id:
++        t = conn.execute("SELECT * FROM tickets WHERE id=? AND customer_id=? AND currency=? AND status='ISSUED'", (ticket_id, customer_id, currency)).fetchone()
++        if not t:
++            raise ValueError("Tiketi uliyochagua haihusiani na mteja au sarafu hii.")
++        allocate_ticket(t)
++    else:
++        unpaid = conn.execute("SELECT * FROM tickets WHERE customer_id=? AND currency=? AND payment_status!='PAID' AND status='ISSUED' ORDER BY ticket_date, id", (customer_id, currency)).fetchall()
++        for t in unpaid:
++            if rem <= 0: break
++            allocate_ticket(t)
++
++    debt_col = "opening_debt_tzs" if currency == "TZS" else "opening_debt_usd"
++    credit_col = "credit_balance_tzs" if currency == "TZS" else "credit_balance_usd"
++    opening = float(cust[debt_col] or 0)
++    part = min(rem, opening)
++    if part > 0:
++        conn.execute(f"UPDATE customers SET {debt_col}=? WHERE id=?", (opening-part, customer_id))
++        conn.execute("INSERT INTO customer_payment_allocations (payment_id, allocation_type, amount) VALUES (?, 'OPENING_DEBT', ?)", (payment_id, part))
++        rem -= part
++    if rem > 0:
++        conn.execute(f"UPDATE customers SET {credit_col}=COALESCE({credit_col},0)+? WHERE id=?", (rem, customer_id))
++        conn.execute("INSERT INTO customer_payment_allocations (payment_id, allocation_type, amount) VALUES (?, 'CREDIT', ?)", (payment_id, rem))
++
++def reverse_customer_payment_allocations(conn, payment_id, customer_id, currency):
++    """Reverse exact allocations made by a payment; returns False for legacy records."""
++    rows = conn.execute("SELECT * FROM customer_payment_allocations WHERE payment_id=? ORDER BY id DESC", (payment_id,)).fetchall()
++    if not rows:
++        return False
++    debt_col = "opening_debt_tzs" if currency == "TZS" else "opening_debt_usd"
++    credit_col = "credit_balance_tzs" if currency == "TZS" else "credit_balance_usd"
++    for row in rows:
++        amount = float(row["amount"] or 0)
++        if row["allocation_type"] == "TICKET" and row["ticket_id"]:
++            t = conn.execute("SELECT * FROM tickets WHERE id=?", (row["ticket_id"],)).fetchone()
++            if t:
++                paid = max(0.0, float(t["amount_paid"] or 0)-amount)
++                status = "PAID" if paid >= float(t["total_selling"] or 0) and paid > 0 else ("PARTIAL" if paid > 0 else "UNPAID")
++                conn.execute("UPDATE tickets SET amount_paid=?, payment_status=? WHERE id=?", (paid, status, t["id"]))
++        elif row["allocation_type"] == "OPENING_DEBT":
++            conn.execute(f"UPDATE customers SET {debt_col}=COALESCE({debt_col},0)+? WHERE id=?", (amount, customer_id))
++        elif row["allocation_type"] == "CREDIT":
++            conn.execute(f"UPDATE customers SET {credit_col}=MAX(0, COALESCE({credit_col},0)-?) WHERE id=?", (amount, customer_id))
++    conn.execute("DELETE FROM customer_payment_allocations WHERE payment_id=?", (payment_id,))
++    return True
++
++
+ # ---------------- 06. CUSTOMER ACCOUNTS ----------------
+ @app.route("/customers", methods=["GET", "POST"])
+ @login_required
+@@ -1455,40 +1731,14 @@ def customer_accounts():
+             )
+             pay_id = cur.lastrowid
+ 
+-            rem = amount
+-            if ticket_id:
+-                t = conn.execute("SELECT * FROM tickets WHERE id=?", (ticket_id,)).fetchone()
+-                if t:
+-                    due = max(0.0, float(t["total_selling"]) - float(t["amount_paid"]))
+-                    alloc = min(rem, due)
+-                    new_paid = float(t["amount_paid"]) + alloc
+-                    st = "PAID" if new_paid >= float(t["total_selling"]) else "PARTIAL"
+-                    conn.execute("UPDATE tickets SET amount_paid=?, payment_status=? WHERE id=?", (new_paid, st, ticket_id))
+-                    rem -= alloc
+-            else:
+-                # 1. Pay off unpaid tickets FIFO first
+-                unpaid_ts = conn.execute(
+-                    "SELECT * FROM tickets WHERE customer_id=? AND currency=? AND payment_status != 'PAID' AND status='ISSUED' ORDER BY ticket_date ASC, id ASC",
+-                    (customer_id, currency)
+-                ).fetchall()
+-                for t in unpaid_ts:
+-                    if rem <= 0:
+-                        break
+-                    due = max(0.0, float(t["total_selling"]) - float(t["amount_paid"]))
+-                    alloc = min(rem, due)
+-                    new_paid = float(t["amount_paid"]) + alloc
+-                    st = "PAID" if new_paid >= float(t["total_selling"]) else "PARTIAL"
+-                    conn.execute("UPDATE tickets SET amount_paid=?, payment_status=? WHERE id=?", (new_paid, st, t["id"]))
+-                    rem -= alloc
+-
+-                # 2. If there is remaining payment (or customer only had Opening Debt), reduce opening debt!
+-                if rem > 0 and cust:
+-                    if currency == "TZS" and float(cust["opening_debt_tzs"] or 0) > 0:
+-                        new_open = max(0.0, float(cust["opening_debt_tzs"]) - rem)
+-                        conn.execute("UPDATE customers SET opening_debt_tzs=? WHERE id=?", (new_open, customer_id))
+-                    elif currency == "USD" and float(cust["opening_debt_usd"] or 0) > 0:
+-                        new_open = max(0.0, float(cust["opening_debt_usd"]) - rem)
+-                        conn.execute("UPDATE customers SET opening_debt_usd=? WHERE id=?", (new_open, customer_id))
++            try:
++                apply_customer_payment_allocations(conn, pay_id, customer_id, ticket_id, currency, amount)
++            except ValueError as exc:
++                conn.execute("DELETE FROM customer_payments WHERE id=?", (pay_id,))
++                conn.rollback()
++                conn.close()
++                flash(str(exc), "danger")
++                return redirect(url_for("customer_accounts"))
+ 
+             sync_ledger_entry(
+                 conn, "CUSTOMER_PAYMENT", pay_id, pay_date, currency, branch, method, "IN",
+@@ -1501,6 +1751,60 @@ def customer_accounts():
+             flash(f"Umefanikiwa kuhifadhi malipo ya {cust_name} ({currency} {amount:,.2f}).", "success")
+             return redirect(url_for("customer_accounts"))
+ 
++        elif action == "edit_payment":
++            pid = int(request.form["payment_id"])
++            pay = conn.execute("SELECT * FROM customer_payments WHERE id=?", (pid,)).fetchone()
++            if not pay:
++                conn.close(); flash("Malipo hayakupatikana.", "danger")
++                return redirect(url_for("customer_accounts"))
++            cid = int(pay["customer_id"]); old_currency = pay["currency"]
++            # Reverse the original allocation before applying the edited values.
++            had_allocations = reverse_customer_payment_allocations(conn, pid, cid, old_currency)
++            if not had_allocations:
++                # Legacy payment: reverse using the same historical FIFO fallback used by Delete.
++                old_amt = float(pay["amount"] or 0); old_tid = pay["ticket_id"]
++                if old_tid:
++                    old_ticket = conn.execute("SELECT * FROM tickets WHERE id=?", (old_tid,)).fetchone()
++                    if old_ticket:
++                        paid_now = max(0.0, float(old_ticket["amount_paid"] or 0)-old_amt)
++                        st_now = "PAID" if paid_now >= float(old_ticket["total_selling"] or 0) and paid_now > 0 else ("PARTIAL" if paid_now > 0 else "UNPAID")
++                        conn.execute("UPDATE tickets SET amount_paid=?, payment_status=? WHERE id=?", (paid_now, st_now, old_tid))
++                else:
++                    rem_old = old_amt
++                    old_paid_tickets = conn.execute("SELECT * FROM tickets WHERE customer_id=? AND currency=? AND amount_paid>0 AND status='ISSUED' ORDER BY ticket_date DESC, id DESC", (cid, old_currency)).fetchall()
++                    for old_ticket in old_paid_tickets:
++                        if rem_old <= 0: break
++                        reversal = min(rem_old, float(old_ticket["amount_paid"] or 0))
++                        paid_now = float(old_ticket["amount_paid"] or 0)-reversal
++                        st_now = "PAID" if paid_now >= float(old_ticket["total_selling"] or 0) and paid_now > 0 else ("PARTIAL" if paid_now > 0 else "UNPAID")
++                        conn.execute("UPDATE tickets SET amount_paid=?, payment_status=? WHERE id=?", (paid_now, st_now, old_ticket["id"]))
++                        rem_old -= reversal
++                    if rem_old > 0:
++                        old_debt_col = "opening_debt_tzs" if old_currency == "TZS" else "opening_debt_usd"
++                        conn.execute(f"UPDATE customers SET {old_debt_col}=COALESCE({old_debt_col},0)+? WHERE id=?", (rem_old, cid))
++            pay_date = request.form["payment_date"]
++            currency = request.form["currency"]
++            amount = parse_num(request.form.get("amount"))
++            branch = request.form["branch"]
++            method = request.form["payment_method"]
++            ref = request.form.get("reference", "").strip()
++            notes = request.form.get("notes", "").strip()
++            ticket_raw = request.form.get("ticket_id", "").strip()
++            ticket_id = int(ticket_raw) if ticket_raw else None
++            if amount <= 0:
++                conn.rollback(); conn.close(); flash("Kiasi lazima kiwe zaidi ya sifuri.", "danger")
++                return redirect(url_for("customer_accounts"))
++            conn.execute("UPDATE customer_payments SET payment_date=?, ticket_id=?, branch=?, currency=?, amount=?, payment_method=?, reference=?, notes=? WHERE id=?", (pay_date, ticket_id, branch, currency, amount, method, ref, notes, pid))
++            try:
++                apply_customer_payment_allocations(conn, pid, cid, ticket_id, currency, amount)
++            except ValueError as exc:
++                conn.rollback(); conn.close(); flash(str(exc), "danger")
++                return redirect(url_for("customer_accounts"))
++            sync_ledger_entry(conn, "CUSTOMER_PAYMENT", pid, pay_date, currency, branch, method, "IN", "CUSTOMER_DEBT_PAYMENT", ref, "Malipo ya Deni (Yamehaririwa)", amount, session["username"])
++            log_audit(conn, session["user_id"], session["username"], "EDIT", "CUST_PAY", pid, f"Edited customer payment #{pid}: {currency} {amount}")
++            conn.commit(); conn.close(); flash("Malipo yamehaririwa na salio limekokotolewa upya.", "success")
++            return redirect(url_for("customer_accounts", scroll_y=request.form.get("scroll_y", "0")))
++
+         elif action == "delete_payment":
+             pid = int(request.form["payment_id"])
+             pay = conn.execute("SELECT * FROM customer_payments WHERE id=?", (pid,)).fetchone()
+@@ -1510,32 +1814,28 @@ def customer_accounts():
+                 amt = float(pay["amount"])
+                 tid = pay["ticket_id"]
+ 
+-                # Reverse debt reduction cleanly
+-                if tid:
+-                    t = conn.execute("SELECT * FROM tickets WHERE id=?", (tid,)).fetchone()
+-                    if t:
+-                        new_paid = max(0.0, float(t["amount_paid"]) - amt)
+-                        st = "PAID" if new_paid >= float(t["total_selling"]) and new_paid > 0 else ("PARTIAL" if new_paid > 0 else "UNPAID")
+-                        conn.execute("UPDATE tickets SET amount_paid=?, payment_status=? WHERE id=?", (new_paid, st, tid))
+-                else:
+-                    rem = amt
+-                    paid_ts = conn.execute(
+-                        "SELECT * FROM tickets WHERE customer_id=? AND currency=? AND amount_paid > 0 AND status='ISSUED' ORDER BY ticket_date DESC, id DESC",
+-                        (cid, curr)
+-                    ).fetchall()
+-                    for t in paid_ts:
+-                        if rem <= 0:
+-                            break
+-                        rev = min(rem, float(t["amount_paid"]))
+-                        new_paid = float(t["amount_paid"]) - rev
+-                        st = "PAID" if new_paid >= float(t["total_selling"]) and new_paid > 0 else ("PARTIAL" if new_paid > 0 else "UNPAID")
+-                        conn.execute("UPDATE tickets SET amount_paid=?, payment_status=? WHERE id=?", (new_paid, st, t["id"]))
+-                        rem -= rev
+-                    if rem > 0:
+-                        if curr == "TZS":
+-                            conn.execute("UPDATE customers SET opening_debt_tzs = COALESCE(opening_debt_tzs,0) + ? WHERE id=?", (rem, cid))
+-                        else:
+-                            conn.execute("UPDATE customers SET opening_debt_usd = COALESCE(opening_debt_usd,0) + ? WHERE id=?", (rem, cid))
++                had_allocations = reverse_customer_payment_allocations(conn, pid, cid, curr)
++                if not had_allocations:
++                    # Backward-compatible reversal for payments recorded before allocation tracking.
++                    if tid:
++                        t = conn.execute("SELECT * FROM tickets WHERE id=?", (tid,)).fetchone()
++                        if t:
++                            new_paid = max(0.0, float(t["amount_paid"] or 0) - amt)
++                            st = "PAID" if new_paid >= float(t["total_selling"] or 0) and new_paid > 0 else ("PARTIAL" if new_paid > 0 else "UNPAID")
++                            conn.execute("UPDATE tickets SET amount_paid=?, payment_status=? WHERE id=?", (new_paid, st, tid))
++                    else:
++                        rem = amt
++                        paid_ts = conn.execute("SELECT * FROM tickets WHERE customer_id=? AND currency=? AND amount_paid>0 AND status='ISSUED' ORDER BY ticket_date DESC, id DESC", (cid, curr)).fetchall()
++                        for t in paid_ts:
++                            if rem <= 0: break
++                            rev = min(rem, float(t["amount_paid"] or 0))
++                            new_paid = float(t["amount_paid"] or 0) - rev
++                            st = "PAID" if new_paid >= float(t["total_selling"] or 0) and new_paid > 0 else ("PARTIAL" if new_paid > 0 else "UNPAID")
++                            conn.execute("UPDATE tickets SET amount_paid=?, payment_status=? WHERE id=?", (new_paid, st, t["id"]))
++                            rem -= rev
++                        if rem > 0:
++                            debt_col = "opening_debt_tzs" if curr == "TZS" else "opening_debt_usd"
++                            conn.execute(f"UPDATE customers SET {debt_col}=COALESCE({debt_col},0)+? WHERE id=?", (rem, cid))
+ 
+                 conn.execute("DELETE FROM customer_payments WHERE id=?", (pid,))
+                 conn.execute("DELETE FROM bank_transactions WHERE source_module='CUSTOMER_PAYMENT' AND source_id=?", (pid,))
+@@ -1549,7 +1849,8 @@ def customer_accounts():
+     customers = conn.execute(
+         """SELECT c.*,
+            (COALESCE((SELECT SUM(total_selling - amount_paid) FROM tickets t WHERE t.customer_id=c.id AND t.currency='TZS' AND t.status='ISSUED'), 0) + COALESCE(c.opening_debt_tzs, 0)) AS debt_tzs,
+-           (COALESCE((SELECT SUM(total_selling - amount_paid) FROM tickets t WHERE t.customer_id=c.id AND t.currency='USD' AND t.status='ISSUED'), 0) + COALESCE(c.opening_debt_usd, 0)) AS debt_usd
++           (COALESCE((SELECT SUM(total_selling - amount_paid) FROM tickets t WHERE t.customer_id=c.id AND t.currency='USD' AND t.status='ISSUED'), 0) + COALESCE(c.opening_debt_usd, 0)) AS debt_usd,
++           COALESCE(c.credit_balance_tzs,0) AS credit_tzs, COALESCE(c.credit_balance_usd,0) AS credit_usd
+            FROM customers c ORDER BY c.id DESC"""
+     ).fetchall()
+     unpaid_tickets = conn.execute(
+@@ -1565,8 +1866,13 @@ def customer_accounts():
+            LEFT JOIN tickets t ON p.ticket_id = t.id
+            ORDER BY p.payment_date DESC, p.id DESC LIMIT 50"""
+     ).fetchall()
++    all_customer_tickets = conn.execute(
++        """SELECT id, customer_id, ticket_number, passenger_name, currency
++           FROM tickets WHERE status='ISSUED' AND customer_id IS NOT NULL
++           ORDER BY ticket_date DESC, id DESC"""
++    ).fetchall()
+     conn.close()
+-    return render_template("customers.html", customers=customers, unpaid_tickets=unpaid_tickets, payments=payments)
++    return render_template("customers.html", customers=customers, unpaid_tickets=unpaid_tickets, payments=payments, all_customer_tickets=all_customer_tickets)
+ 
+ @app.route("/customers/<int:cid>/statement")
+ @login_required

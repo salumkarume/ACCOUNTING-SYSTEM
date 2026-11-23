@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="report-letterhead">
+  <div>
+    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Hawaii Travel Agency Company Limited">
+  </div>
+  <div class="report-letterhead-info">
+    <h2>HAWAII TRAVEL AGENCY COMPANY LIMITED</h2>
+    <p>IATA Accredited Travel & Tour Agency • Dar es Salaam & Zanzibar (Zanzibar)</p>
+    <p><strong>Official Financial Statement Report</strong> ({{ start_date }} hadi {{ end_date }})</p>
+  </div>
+</div>
+
+<div class="topbar no-print">
+  <h1>10. Financial Reports (P&L, Balance Sheet & Exports)</h1>
+  <div style="display:flex; gap:6px; flex-wrap:wrap;">
+    <button type="button" class="btn btn-sm btn-accent" onclick="window.print()">🖨️ Print / PDF Ripoti</button>
+    <a class="btn btn-sm" href="{{ url_for('export_csv', report_type='tickets') }}">Export Tickets CSV</a>
+    <a class="btn btn-sm" href="{{ url_for('export_csv', report_type='bank') }}">Export Bank CSV</a>
+    <a class="btn btn-sm" href="{{ url_for('export_csv', report_type='director') }}">Export Director CSV</a>
+  </div>
+</div>
+
+<div class="card no-print">
+  <form method="GET" class="form-grid">
+    <div><label>Kuanzia Tarehe</label><input type="date" name="start_date" value="{{ start_date }}"></div>
+    <div><label>Hadi Tarehe</label><input type="date" name="end_date" value="{{ end_date }}"></div>
+    <div><button type="submit">Tengeneza Ripoti</button></div>
+  </form>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h3>Profit & Loss Statement ({{ start_date }} hadi {{ end_date }})</h3>
+    <table>
+      <thead><tr><th>Kipengele</th><th class="num">TZS</th><th class="num">USD</th></tr></thead>
+      <tbody>
+        <tr><td>Agency Revenue (Service Charges + Commissions)</td><td class="num">{{ "{:,.2f}".format(rev_tzs) }}</td><td class="num">{{ "{:,.2f}".format(rev_usd) }}</td></tr>
+        <tr><td>Less: Approved Operating Expenses</td><td class="num">-{{ "{:,.2f}".format(exp_tzs) }}</td><td class="num">-{{ "{:,.2f}".format(exp_usd) }}</td></tr>
+        <tr><td>Less: Bank Charges</td><td class="num">-{{ "{:,.2f}".format(bk_chg_tzs) }}</td><td class="num">-{{ "{:,.2f}".format(bk_chg_usd) }}</td></tr>
+        <tr style="background:#f8fafc;"><td><strong>NET PROFIT / (LOSS)</strong></td><td class="num"><strong>{{ "{:,.2f}".format(net_profit_tzs) }}</strong></td><td class="num"><strong>{{ "{:,.2f}".format(net_profit_usd) }}</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Balance Sheet Summary (As of {{ end_date }})</h3>
+    <table>
+      <thead><tr><th>Assets & Liabilities</th><th class="num">TZS</th><th class="num">USD</th></tr></thead>
+      <tbody>
+        <tr><td>Bank Account Balance</td><td class="num">{{ "{:,.2f}".format(bank_tzs) }}</td><td class="num">{{ "{:,.2f}".format(bank_usd) }}</td></tr>
+        <tr><td>Cash & Lipa Namba Balances</td><td class="num">{{ "{:,.2f}".format(cash_tzs) }}</td><td class="num">{{ "{:,.2f}".format(cash_usd) }}</td></tr>
+        <tr><td>Customer Receivables (Madeni ya Wateja)</td><td class="num">{{ "{:,.2f}".format(ar_tzs) }}</td><td class="num">{{ "{:,.2f}".format(ar_usd) }}</td></tr>
+        <tr><td>Less: IATA BSP Liability (Deni la IATA)</td><td class="num">-{{ "{:,.2f}".format(bsp_due_tzs) }}</td><td class="num">-{{ "{:,.2f}".format(bsp_due_usd) }}</td></tr>
+        <tr><td>Director Current Account Balance</td><td class="num">{{ "{:,.2f}".format(dir_tzs) }}</td><td class="num">{{ "{:,.2f}".format(dir_usd) }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

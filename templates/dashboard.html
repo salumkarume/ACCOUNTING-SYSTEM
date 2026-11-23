@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="report-letterhead" style="margin-bottom:18px;">
+  <div>
+    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Hawaii Travel Agency Company Limited">
+  </div>
+  <div class="report-letterhead-info">
+    <h2>HAWAII TRAVEL AGENCY COMPANY LIMITED</h2>
+    <p>IATA Accredited • Dar es Salaam & Zanzibar Reconciliation ERP (v4)</p>
+  </div>
+</div>
+<div class="topbar">
+  <h1>01. Company Financial Dashboard</h1>
+  <span class="badge b-blue">Tarehe: {{ today }}</span>
+</div>
+
+<div class="grid-4">
+  <div class="card">
+    <div class="stat-label">Bank Balance (Single Account)</div>
+    <div class="stat-val">TZS {{ "{:,.2f}".format(bank_tzs) }}</div>
+    <div class="stat-sub">USD {{ "{:,.2f}".format(bank_usd) }}</div>
+  </div>
+  <div class="card">
+    <div class="stat-label">Branch Cash & Lipa Namba</div>
+    <div class="stat-val">TZS {{ "{:,.2f}".format(dar_cash_tzs + znz_cash_tzs + lipa_namba_tzs) }}</div>
+    <div class="stat-sub">DAR: {{ "{:,.0f}".format(dar_cash_tzs) }} | ZNZ: {{ "{:,.0f}".format(znz_cash_tzs) }} | Lipa: {{ "{:,.0f}".format(lipa_namba_tzs) }} | USD: {{ "{:,.2f}".format(dar_cash_usd + znz_cash_usd) }}</div>
+  </div>
+  <div class="card">
+    <div class="stat-label">Customer Debts (Receivables)</div>
+    <div class="stat-val">TZS {{ "{:,.2f}".format(debt_tzs) }}</div>
+    <div class="stat-sub">USD {{ "{:,.2f}".format(debt_usd) }}</div>
+  </div>
+  <div class="card">
+    <div class="stat-label">IATA BSP Payable (Deni la IATA)</div>
+    <div class="stat-val" style="color:#dc2626;">USD {{ "{:,.2f}".format(iata_payable_usd) }}</div>
+    <div class="stat-sub">TZS {{ "{:,.2f}".format(iata_payable_tzs) }}</div>
+  </div>
+</div>
+
+<div class="grid-4">
+  <div class="card">
+    <div class="stat-label">Director Current Account</div>
+    <div class="stat-val">TZS {{ "{:,.2f}".format(dir_bal_tzs) }}</div>
+    <div class="stat-sub">USD {{ "{:,.2f}".format(dir_bal_usd) }}</div>
+  </div>
+  <div class="card">
+    <div class="stat-label">Net Financial Position</div>
+    <div class="stat-val" style="color:{{ '#16a34a' if net_pos_tzs >= 0 else '#dc2626' }};">TZS {{ "{:,.2f}".format(net_pos_tzs) }}</div>
+    <div class="stat-sub">USD {{ "{:,.2f}".format(net_pos_usd) }}</div>
+    <div class="stat-sub">Imejumuisha cash, bank, madeni ya wateja na advances; imepunguza BSP na deni la director.</div>
+  </div>
+  <div class="card">
+    <div class="stat-label">Agency Revenue — Service Fee</div>
+    <div class="stat-val">TZS {{ "{:,.2f}".format(agency_service_tzs) }}</div>
+    <div class="stat-sub">USD {{ "{:,.2f}".format(agency_service_usd) }}</div>
+  </div>
+  <div class="card">
+    <div class="stat-label">Agency Revenue — Commission</div>
+    <div class="stat-val">TZS {{ "{:,.2f}".format(agency_commission_tzs) }}</div>
+    <div class="stat-sub">USD {{ "{:,.2f}".format(agency_commission_usd) }}</div>
+  </div>
+  <div class="card">
+    <div class="stat-label">Unexplained Transfers</div>
+    <div class="stat-val" style="color:{{ '#dc2626' if unexplained_count > 0 else '#16a34a' }};">{{ unexplained_count }}</div>
+    <div class="stat-sub"><a href="{{ url_for('director_control') }}">Hakiki miamala</a></div>
+  </div>
+  <div class="card">
+    <div class="stat-label">Pesa za Benki Zilizochukuliwa Bado Hazijarudi</div>
+    <div class="stat-val" style="color:{{ '#dc2626' if advance_out_tzs > 0 else '#16a34a' }};">TZS {{ "{:,.2f}".format(advance_out_tzs) }}</div>
+    <div class="stat-sub">USD {{ "{:,.2f}".format(advance_out_usd) }} | <a href="{{ url_for('bank_advances') }}">Angalia aliyechukua na marejesho</a></div>
+  </div>
+  <div class="card">
+    <div class="stat-label">Pending Expense Approvals</div>
+    <div class="stat-val">{{ pending_expenses }}</div>
+    <div class="stat-sub"><a href="{{ url_for('expenses_management') }}">Idhinisha matumizi</a></div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:18px;">
+  <h3>Bank & Cash Reconciliation — Muhtasari wa Boss</h3>
+  <p style="color:#64748b;margin-top:-6px;">Angalia fedha zilizopo benki, fedha taslimu na advance ambazo bado ziko kwa watumishi. TZS na USD vinaonyeshwa tofauti; havijachanganywa.</p>
+  <div class="grid-4">
+    <div class="card"><div class="stat-label">1. Bank Balance</div><div class="stat-val">TZS {{ "{:,.2f}".format(bank_tzs) }}</div><div class="stat-sub">USD {{ "{:,.2f}".format(bank_usd) }} | <a href="{{ url_for('bank_management') }}">Fungua Bank Reconciliation</a></div></div>
+    <div class="card"><div class="stat-label">2. Cash Balance (DAR + ZANZIBAR + Lipa)</div><div class="stat-val">TZS {{ "{:,.2f}".format(cash_balance_tzs) }}</div><div class="stat-sub">USD {{ "{:,.2f}".format(cash_balance_usd) }} | <a href="{{ url_for('cash_management') }}">Fungua Cash Ledger</a></div></div>
+    <div class="card"><div class="stat-label">3. Outstanding Bank Advances</div><div class="stat-val" style="color:{{ '#dc2626' if advance_out_tzs > 0 else '#16a34a' }};">TZS {{ "{:,.2f}".format(advance_out_tzs) }}</div><div class="stat-sub">USD {{ "{:,.2f}".format(advance_out_usd) }} | <a href="{{ url_for('bank_advances') }}">Ona waliochukua na marejesho</a></div></div>
+    <div class="card"><div class="stat-label">Jumla ya Fedha Zinazofuatiliwa (Bank + Cash + Advances)</div><div class="stat-val">TZS {{ "{:,.2f}".format(accounted_funds_tzs) }}</div><div class="stat-sub">USD {{ "{:,.2f}".format(accounted_funds_usd) }}</div></div>
+  </div>
+  <div class="stat-sub" style="margin-top:10px;">Bank transactions ambazo bado hazijalinganishwa na statement: <strong>{{ bank_unreconciled_count }}</strong> | TZS net: <strong>{{ "{:,.2f}".format(bank_unreconciled_tzs) }}</strong> | USD net: <strong>{{ "{:,.2f}".format(bank_unreconciled_usd) }}</strong> — <a href="{{ url_for('bank_management') }}">Hakiki sasa</a>.</div>
+</div>
+<div class="card" style="margin-bottom:18px; border-left:4px solid #0f766e;">
+  <h3>Profit Accounts — Faida kwa Tawi (TZS na USD)</h3>
+  <p style="color:#64748b;margin-top:-5px;">Faida za NON-IATA, WORKING CLIENT na CORPORATE zinaonyeshwa tofauti kwa kila tawi. TZS na USD hazichanganywi.</p>
+  <div class="grid-2">
+    <div class="card">
+      <h4>NON-IATA PROFIT</h4>
+      <table>
+        <thead><tr><th>Tawi</th><th class="num">TZS</th><th class="num">USD</th></tr></thead>
+        <tbody>
+          <tr><td>DAR</td><td class="num">{{ "{:,.2f}".format(dar_non_tzs) }}</td><td class="num">{{ "{:,.2f}".format(dar_non_usd) }}</td></tr>
+          <tr><td>ZANZIBAR</td><td class="num">{{ "{:,.2f}".format(unguja_non_tzs) }}</td><td class="num">{{ "{:,.2f}".format(unguja_non_usd) }}</td></tr>
+          <tr><th>TOTAL NON-IATA</th><th class="num">{{ "{:,.2f}".format(non_iata_profit_tzs) }}</th><th class="num">{{ "{:,.2f}".format(non_iata_profit_usd) }}</th></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h4>HAWAII WORKING CLIENT PROFIT</h4>
+      <table>
+        <thead><tr><th>Tawi</th><th class="num">TZS</th><th class="num">USD</th></tr></thead>
+        <tbody>
+          <tr><td>DAR</td><td class="num">{{ "{:,.2f}".format(dar_work_tzs) }}</td><td class="num">{{ "{:,.2f}".format(dar_work_usd) }}</td></tr>
+          <tr><td>ZANZIBAR</td><td class="num">{{ "{:,.2f}".format(unguja_work_tzs) }}</td><td class="num">{{ "{:,.2f}".format(unguja_work_usd) }}</td></tr>
+          <tr><th>TOTAL WORKING CLIENT</th><th class="num">{{ "{:,.2f}".format(working_profit_tzs) }}</th><th class="num">{{ "{:,.2f}".format(working_profit_usd) }}</th></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h4>HAWAII CORPORATE S/FEE PROFIT</h4>
+      <table>
+        <thead><tr><th>Tawi</th><th class="num">TZS</th><th class="num">USD</th></tr></thead>
+        <tbody>
+          <tr><td>DAR</td><td class="num">{{ "{:,.2f}".format(dar_corporate_tzs) }}</td><td class="num">{{ "{:,.2f}".format(dar_corporate_usd) }}</td></tr>
+          <tr><td>ZANZIBAR</td><td class="num">{{ "{:,.2f}".format(unguja_corporate_tzs) }}</td><td class="num">{{ "{:,.2f}".format(unguja_corporate_usd) }}</td></tr>
+          <tr><th>TOTAL CORPORATE</th><th class="num">{{ "{:,.2f}".format(corporate_profit_tzs) }}</th><th class="num">{{ "{:,.2f}".format(corporate_profit_usd) }}</th></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card" style="margin-top:12px;">
+    <h4>TOTAL EXTRA PROFIT — NON-IATA + WORKING CLIENT + CORPORATE</h4>
+    <table>
+      <thead><tr><th>Tawi</th><th class="num">TZS</th><th class="num">USD</th></tr></thead>
+      <tbody>
+        <tr><td>DAR</td><td class="num">{{ "{:,.2f}".format(dar_total_profit_tzs) }}</td><td class="num">{{ "{:,.2f}".format(dar_total_profit_usd) }}</td></tr>
+        <tr><td>ZANZIBAR</td><td class="num">{{ "{:,.2f}".format(unguja_total_profit_tzs) }}</td><td class="num">{{ "{:,.2f}".format(unguja_total_profit_usd) }}</td></tr>
+        <tr><th>ALL BRANCHES — TOTAL COMPANY PROFIT</th><th class="num">{{ "{:,.2f}".format(all_total_profit_tzs) }}</th><th class="num">{{ "{:,.2f}".format(all_total_profit_usd) }}</th></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:18px; border-left:4px solid #16a34a;">
+  <h3>Maelezo ya Service Fee na Commission</h3>
+  <p style="color:#64748b;margin:0;">Service Fee na Commission zinaonyeshwa kama mapato ya kampuni. Haziongezwi tena moja kwa moja kwenye Net Financial Position, kwa sababu fedha zilizopokelewa tayari zimo kwenye Cash/Bank na ambazo hazijalipwa zimo kwenye Customer Receivables. Hii inazuia kuhesabu mapato mara mbili.</p>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h3>Tiketi za Hivi Karibuni</h3>
+    <table>
+      <thead><tr><th>Tarehe</th><th>Ticket No</th><th>Tawi</th><th>Aina</th><th class="num">Kiasi</th></tr></thead>
+      <tbody>
+        {% for t in recent_tickets %}
+        <tr>
+          <td>{{ t.ticket_date }}</td>
+          <td>{{ t.ticket_number }}</td>
+          <td>{{ 'ZANZIBAR' if t.branch == 'UNGUJA' else t.branch }}</td>
+          <td>{{ t.client_type }}</td>
+          <td class="num">{{ t.currency }} {{ "{:,.2f}".format(t.total_selling) }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5">Hakuna tiketi bado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Audit Trail</h3>
+    <table>
+      <thead><tr><th>Muda</th><th>User</th><th>Module</th><th>Maelezo</th></tr></thead>
+      <tbody>
+        {% for a in recent_audits %}
+        <tr>
+          <td>{{ a.created_at }}</td>
+          <td>{{ a.username }}</td>
+          <td><span class="badge b-blue">{{ a.module }}</span></td>
+          <td>{{ a.details }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hawaii Travel Agency Company Ltd - IATA Accounting & ERP v5 – Advanced Financial Control</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo-wrap">
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Hawaii Travel Agency Company Limited">
+      </div>
+      <h2>HAWAII TRAVEL AGENCY</h2>
+      <span>IATA Accredited • DAR & ZANZIBAR (v5)</span>
+    </div>
+    <ul class="nav">
+      {% if current_role not in ('boss','ticket_user') %}
+      <li><a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint=='dashboard' else '' }}">01. Dashboard</a></li>
+      <li><a href="{{ url_for('bank_management') }}" class="{{ 'active' if request.endpoint=='bank_management' else '' }}">02. Bank Management & Reconciliation</a></li>
+      <li><a href="{{ url_for('bank_advances') }}" class="{{ 'active' if request.endpoint=='bank_advances' else '' }}">02A. Bank Advances / Deni</a></li>
+      <li><a href="{{ url_for('cash_management') }}" class="{{ 'active' if request.endpoint=='cash_management' else '' }}">03. Cash & Lipa Namba</a></li>
+      <li><a href="{{ url_for('ticket_management') }}" class="{{ 'active' if request.endpoint=='ticket_management' else '' }}">04. Ticket Management</a></li>
+      <li><a href="{{ url_for('bsp_reconciliation') }}" class="{{ 'active' if request.endpoint=='bsp_reconciliation' else '' }}">05. BSP Reconciliation</a></li>
+      <li><a href="{{ url_for('customer_accounts') }}" class="{{ 'active' if request.endpoint=='customer_accounts' else '' }}">06. Customer Accounts</a></li>
+      <li><a href="{{ url_for('director_control') }}" class="{{ 'active' if request.endpoint=='director_control' else '' }}">07. Director & Transfers</a></li>
+      <li><a href="{{ url_for('branch_control') }}" class="{{ 'active' if request.endpoint=='branch_control' else '' }}">08. Branch Control</a></li>
+      <li><a href="{{ url_for('expenses_management') }}" class="{{ 'active' if request.endpoint=='expenses_management' else '' }}">09. Expenses Management</a></li>
+      <li><a href="{{ url_for('financial_reports') }}" class="{{ 'active' if request.endpoint=='financial_reports' else '' }}">10. Financial Reports</a></li>
+      <li><a href="{{ url_for('user_management') }}" class="{{ 'active' if request.endpoint=='user_management' else '' }}">11. Users & Audit Trail</a></li>
+      <li><a href="{{ url_for('control_center') }}" class="{{ 'active' if request.endpoint=='control_center' else '' }}">12. Daily Closing, Staff Accountability & Control Center</a></li>
+      {% if current_role == 'admin' %}
+      <li><a href="{{ url_for('service_charge_settings') }}" class="{{ 'active' if request.endpoint=='service_charge_settings' else '' }}">13. Settings – NON-IATA Service Charge</a></li>
+      <li><a href="{{ url_for('download_backup') }}">14. Backup & Restore (Download Backup)</a></li>{% endif %}
+      {% endif %}
+      {% if current_role == 'boss' %}<li><a href="{{ url_for('financial_reports') }}" class="{{ 'active' if request.endpoint=='financial_reports' else '' }}">10. Financial Reports</a></li>{% endif %}
+      {% if current_role == 'ticket_user' %}<li><a href="{{ url_for('ticket_management') }}" class="{{ 'active' if request.endpoint=='ticket_management' else '' }}">04. Sajili Tiketi</a></li>{% endif %}
+    </ul>
+    <div class="user-box">
+      <div><strong>{{ current_user }}</strong></div>
+      <div>Role: {{ current_role|upper }} ({{ 'ZANZIBAR' if current_branch == 'UNGUJA' else current_branch }})</div>
+      <a href="{{ url_for('change_password') }}">Badili Password</a><br>
+      <a href="{{ url_for('logout') }}">Logout / Toka</a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-brandbar">
+      <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Hawaii Travel Agency">
+      <div><strong>HAWAII TRAVEL AGENCY COMPANY LIMITED</strong><span>IATA Accredited Travel &amp; Tour Agency • DAR &amp; ZANZIBAR</span></div>
+      <button type="button" class="btn-print no-print" onclick="window.print()">🖨️ Print Ukurasa</button>
+    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div id="flash-container">
+        {% for cat, msg in messages %}
+          <div class="alert alert-{{ cat }}">
+            <span>✓ {{ msg }}</span>
+            <span style="cursor:pointer;margin-left:12px;font-weight:bold;" onclick="this.parentElement.remove()">✕</span>
+          </div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% if request.endpoint != 'dashboard' %}
+    <div class="nav-back-bar no-print">
+      <button type="button" class="btn-back" onclick="goBackSafe()">← Rudi Nyuma</button>
+      <a href="{{ url_for('dashboard') }}" class="btn-home">⌂ Rudi Dashboard Kuu</a>
+    </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Modern Delete Confirmation Modal -->
+  <div id="modernDeleteModal" class="modal-backdrop">
+    <div class="confirm-modal-box">
+      <div class="confirm-icon">🗑️</div>
+      <div class="confirm-title">Thibitisha Kufuta Taarifa</div>
+      <div id="modernDeleteMessage" class="confirm-msg">
+        Je, una uhakika unataka kufuta taarifa hii? Hatua hii haiwezi kurudishwa nyuma.
+      </div>
+      <div class="confirm-actions">
+        <button type="button" style="background:#64748b;" onclick="closeDeleteConfirm()">Ghairi / Rudi</button>
+        <button type="button" id="modernDeleteConfirmBtn" class="btn-danger">Ndiyo, Futa Sasa</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function goBackSafe() {
+      if (window.history.length > 1 && document.referrer && document.referrer.indexOf(window.location.host) !== -1) {
+        window.history.back();
+      } else {
+        window.location.href = "{{ url_for('dashboard') }}";
+      }
+    }
+
+    // Restore the position in the content panel after a POST/redirect (e.g. deleting a row).
+    // Desktop uses .main as the scroll container; mobile uses the document.
+    const hawaiiScrollKey = "hawaii_scroll:" + window.location.pathname;
+    document.addEventListener("DOMContentLoaded", function() {
+      try {
+        const savedScroll = sessionStorage.getItem(hawaiiScrollKey);
+        if (savedScroll !== null) {
+          const y = Number(savedScroll) || 0;
+          const mainPanel = document.querySelector(".main");
+          requestAnimationFrame(() => {
+            if (mainPanel && getComputedStyle(mainPanel).overflowY !== "visible") {
+              mainPanel.scrollTop = y;
+            } else {
+              window.scrollTo(0, y);
+            }
+            sessionStorage.removeItem(hawaiiScrollKey);
+          });
+        }
+      } catch (e) {}
+
+      const alerts = document.querySelectorAll("#flash-container .alert");
+      alerts.forEach(function(el) {
+        setTimeout(function() {
+          el.style.opacity = "0";
+          el.style.transform = "translateY(-10px)";
+          setTimeout(function() { el.remove(); }, 350);
+        }, 3200);
+      });
+    });
+
+    function openModal(id) {
+      const modal = document.getElementById(id);
+      if (!modal) return false;
+      modal.dataset.previousFocus = document.activeElement && document.activeElement.id ? document.activeElement.id : '';
+      modal.classList.add('open');
+      const firstField = modal.querySelector('input:not([type=hidden]), select, textarea, button');
+      if (firstField) firstField.focus({ preventScroll: true });
+      return true;
+    }
+    function closeModal(id) {
+      const modal = typeof id === 'string' ? document.getElementById(id) : id;
+      if (!modal) return false;
+      modal.classList.remove('open');
+      const previousFocusId = modal.dataset.previousFocus;
+      if (previousFocusId) {
+        const previousFocus = document.getElementById(previousFocusId);
+        if (previousFocus) previousFocus.focus({ preventScroll: true });
+      }
+      return true;
+    }
+
+    // Modern Delete Confirmation Handler
+    let pendingDeleteForm = null;
+    function saveHawaiiScrollPosition(formEl) {
+      const mainPanel = document.querySelector(".main");
+      const y = mainPanel && getComputedStyle(mainPanel).overflowY !== "visible"
+        ? mainPanel.scrollTop
+        : (window.scrollY || window.pageYOffset || 0);
+      try { sessionStorage.setItem(hawaiiScrollKey, String(y)); } catch (e) {}
+      const scrollField = formEl && formEl.querySelector('input[name="scroll_y"]');
+      if (scrollField) scrollField.value = String(y);
+    }
+
+    // Save scroll position for every destructive POST, including forms without a custom confirm.
+    document.addEventListener("submit", function(event) {
+      const formEl = event.target;
+      if (!(formEl instanceof HTMLFormElement)) return;
+      const actionField = formEl.querySelector('input[name="action"]');
+      const actionValue = actionField ? actionField.value.toLowerCase() : "";
+      const label = (formEl.innerText || "").toLowerCase();
+      if (actionValue.includes("delete") || label.includes("delete") || label.includes("futa")) {
+        saveHawaiiScrollPosition(formEl);
+      }
+    }, true);
+
+    function askDeleteConfirm(formEl, message) {
+      // Hifadhi sehemu ya ukurasa kabla ya kuonyesha uthibitisho wa kufuta.
+      saveHawaiiScrollPosition(formEl);
+      pendingDeleteForm = formEl;
+      document.getElementById("modernDeleteMessage").textContent = message || "Je, una uhakika unataka kufuta taarifa hii?";
+      openModal("modernDeleteModal");
+      return false;
+    }
+    function closeDeleteConfirm() {
+      pendingDeleteForm = null;
+      closeModal("modernDeleteModal");
+    }
+    document.getElementById("modernDeleteConfirmBtn").addEventListener("click", function() {
+      if (pendingDeleteForm) {
+        const formToSubmit = pendingDeleteForm;
+        pendingDeleteForm = null;
+        closeModal("modernDeleteModal");
+        formToSubmit.submit();
+      }
+    });
+  </script>
+</body>
+</html>

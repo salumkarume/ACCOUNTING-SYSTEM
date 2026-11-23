@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="topbar">
+  <h1>02. Bank Management (Single Account - TZS & USD)</h1>
+  <div>
+    <a class="btn btn-sm" href="{{ url_for('bank_management', currency='ALL') }}">All</a>
+    <a class="btn btn-sm" href="{{ url_for('bank_management', currency='TZS') }}">TZS Ledger</a>
+    <a class="btn btn-sm" href="{{ url_for('bank_management', currency='USD') }}">USD Ledger</a>
+  </div>
+</div>
+
+<div class="grid-4">
+  <div class="card"><div class="stat-label">Book Balance (TZS)</div><div class="stat-val">TZS {{ "{:,.2f}".format(bal_tzs) }}</div><div class="stat-sub">Reconciled: TZS {{ "{:,.2f}".format(rec_tzs) }}</div></div>
+  <div class="card"><div class="stat-label">Book Balance (USD)</div><div class="stat-val">USD {{ "{:,.2f}".format(bal_usd) }}</div><div class="stat-sub">Reconciled: USD {{ "{:,.2f}".format(rec_usd) }}</div></div>
+</div>
+
+<div class="card">
+  <h3>Ingiza Muamala wa Benki</h3>
+  <form method="POST" class="form-grid">
+    <input type="hidden" name="action" value="add_tx">
+    <div><label>Tarehe</label><input type="date" name="tx_date" value="{{ today }}" required></div>
+    <div><label>Sarafu</label><select name="currency"><option value="TZS">TZS</option><option value="USD">USD</option></select></div>
+    <div><label>Tawi</label><select name="branch"><option value="DAR">DAR</option><option value="UNGUJA">ZANZIBAR</option><option value="HQ">HQ / BOSS</option></select></div>
+    <div><label>Aina</label>
+      <select name="tx_type">
+        <option value="DEPOSIT">DEPOSIT (Ingia)</option>
+        <option value="WITHDRAWAL">WITHDRAWAL (Toka)</option>
+        <option value="BANK_CHARGE">BANK CHARGE (Makato)</option>
+        <option value="TRANSFER_IN">TRANSFER IN</option>
+        <option value="TRANSFER_OUT">TRANSFER OUT</option>
+      </select>
+    </div>
+    <div><label>Kipengele</label>
+      <select name="category">
+        <option value="TICKET_SALE">Ticket Sale</option>
+        <option value="CASH_DEPOSIT">Cash Deposit</option>
+        <option value="BOSS_DEPOSIT">Boss Deposit</option>
+        <option value="BOSS_WITHDRAWAL">Boss Withdrawal</option>
+        <option value="EXPENSE">Expense</option>
+        <option value="OTHER">Other</option>
+      </select>
+    </div>
+    <div><label>Bank Ref</label><input type="text" name="reference" placeholder="ZNZ-001"></div>
+    <div><label>Maelezo</label><input type="text" name="description" required></div>
+    <div><label>Kiasi (Amount)</label><input type="number" step="0.01" name="amount" required></div>
+    <div><button type="submit">Hifadhi Muamala</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Bank Statement & Reconciliation</h3>
+  <table>
+    <thead><tr><th>Tarehe</th><th>Curr</th><th>Branch</th><th>Type</th><th>Ref</th><th>Maelezo</th><th class="num">In (+)</th><th class="num">Out (-)</th><th>Reconcile</th><th>Edit / Delete</th></tr></thead>
+    <tbody>
+      {% for tx in txs %}
+      <tr>
+        <td>{{ tx.tx_date }}</td>
+        <td><strong>{{ tx.currency }}</strong></td>
+        <td>{{ 'ZANZIBAR' if tx.branch == 'UNGUJA' else tx.branch }}</td>
+        <td>{{ tx.tx_type }}</td>
+        <td>{{ tx.reference }}</td>
+        <td>{{ tx.description }}</td>
+        <td class="num" style="color:#16a34a;">{{ "{:,.2f}".format(tx.amount_in) if tx.amount_in else '-' }}</td>
+        <td class="num" style="color:#dc2626;">{{ "{:,.2f}".format(tx.amount_out) if tx.amount_out else '-' }}</td>
+        <td>
+          <form method="POST" style="display:inline;">
+            <input type="hidden" name="action" value="reconcile_toggle">
+            <input type="hidden" name="tx_id" value="{{ tx.id }}">
+            <button type="submit" class="btn-sm {{ 'btn-accent' if tx.is_reconciled else '' }}">{{ 'Matched ✓' if tx.is_reconciled else 'Tick' }}</button>
+          </form>
+        </td>
+        <td class="actions-cell">
+          <button type="button" class="btn-sm btn-warning" onclick="openEditBank('{{ tx.id }}','{{ tx.tx_date }}','{{ tx.currency }}','{{ tx.branch }}','{{ tx.tx_type }}','{{ tx.category }}','{{ tx.reference|e }}','{{ tx.description|e }}','{{ tx.amount_in if tx.amount_in else tx.amount_out }}')">Edit</button>
+          <form method="POST" onsubmit="return askDeleteConfirm(this, 'Una uhakika unataka kufuta muamala huu wa benki?');">
+            <input type="hidden" name="action" value="delete_tx">
+            <input type="hidden" name="tx_id" value="{{ tx.id }}">
+            <button type="submit" class="btn-sm btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div id="editBankModal" class="modal-backdrop">
+  <div class="modal-box">
+    <div class="modal-header"><h3>Rekebisha Muamala wa Benki (Edit)</h3><button type="button" class="btn btn-sm" style="background:#64748b;" onclick="closeModal(this.closest('.modal-backdrop').id)">← Rudi Nyuma</button></div>
+    <form method="POST" class="form-grid">
+      <input type="hidden" name="action" value="edit_tx">
+      <input type="hidden" name="tx_id" id="eb_id">
+      <div><label>Tarehe</label><input type="date" name="tx_date" id="eb_date" required></div>
+      <div><label>Sarafu</label><select name="currency" id="eb_curr"><option value="TZS">TZS</option><option value="USD">USD</option></select></div>
+      <div><label>Tawi</label><select name="branch" id="eb_branch"><option value="DAR">DAR</option><option value="UNGUJA">ZANZIBAR</option><option value="HQ">HQ</option></select></div>
+      <div><label>Aina</label><select name="tx_type" id="eb_type"><option value="DEPOSIT">DEPOSIT</option><option value="WITHDRAWAL">WITHDRAWAL</option><option value="BANK_CHARGE">BANK_CHARGE</option><option value="TRANSFER_IN">TRANSFER_IN</option><option value="TRANSFER_OUT">TRANSFER_OUT</option></select></div>
+      <div><label>Kipengele</label><select name="category" id="eb_cat"><option value="TICKET_SALE">Ticket Sale</option><option value="CASH_DEPOSIT">Cash Deposit</option><option value="BOSS_DEPOSIT">Boss Deposit</option><option value="BOSS_WITHDRAWAL">Boss Withdrawal</option><option value="EXPENSE">Expense</option><option value="OTHER">Other</option></select></div>
+      <div><label>Reference</label><input type="text" name="reference" id="eb_ref"></div>
+      <div><label>Maelezo</label><input type="text" name="description" id="eb_desc" required></div>
+      <div><label>Kiasi</label><input type="number" step="0.01" name="amount" id="eb_amt" required></div>
+      <div><button type="submit" class="btn-accent">Hifadhi Marekebisho</button></div>
+    </form>
+  </div>
+</div>
+<script>
+function openEditBank(id, dt, curr, br, tp, cat, ref, desc, amt) {
+  document.getElementById('eb_id').value = id;
+  document.getElementById('eb_date').value = dt;
+  document.getElementById('eb_curr').value = curr;
+  document.getElementById('eb_branch').value = br;
+  document.getElementById('eb_type').value = tp;
+  document.getElementById('eb_cat').value = cat;
+  document.getElementById('eb_ref').value = ref;
+  document.getElementById('eb_desc').value = desc;
+  document.getElementById('eb_amt').value = amt;
+  openModal('editBankModal');
+}
+</script>
+{% endblock %}

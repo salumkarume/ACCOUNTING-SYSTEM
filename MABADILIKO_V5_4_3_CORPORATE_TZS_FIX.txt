@@ -1,0 +1,10 @@
+HAWAII ERP V5.4.3 - CORPORATE TZS EXPORT FIX
+
+Marekebisho:
+1. Excel sasa inatambua aina za CORPORATE zilizoandikwa kwa miundo ya zamani, ikiwemo COPORATE (makosa ya tahajia), CORPORATE CLIENT, HAWAII CORPORATE na CORPORATE S/FEE.
+2. Sarafu za TZS/USD zinasawazishwa kabla ya kuhesabu service fee ili rekodi za zamani zisiondoke kwenye safu husika.
+3. Rekodi za tawi la ZANZIBAR/UNGUJA/ZNZ zinaunganishwa kwenye Profit Summary ya ZANZIBAR bila kubadilisha thamani zilizohifadhiwa kwenye database.
+4. Dashboard Corporate totals zinajumuisha majina ya zamani ya CORPORATE.
+5. Mpangilio wa Excel umehifadhiwa: DAR ina sheet moja yenye DAR + ZANZIBAR na summary ya matawi yote; ZANZIBAR ina sheet moja yenye ZANZIBAR pekee.
+
+Database haijafutwa wala kubadilishwa na marekebisho haya.

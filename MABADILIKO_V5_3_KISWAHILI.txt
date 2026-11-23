@@ -1,0 +1,34 @@
+HAWAII TRAVEL ERP V5.3 – MABADILIKO
+
+1. Aina ya mteja wa tiketi sasa ina NON-IATA, WORKING CLIENT na CORPORATE.
+2. CORPORATE lazima kwanza asajiliwe kwenye Customer Accounts kwa category CORPORATE. Mfumo unakataa kurekodi tiketi ya CORPORATE bila akaunti hiyo.
+3. Customer Accounts ina category mpya ya CORPORATE.
+4. Ticket Register ina utafutaji kwa ticket number, jina la abiria, jina la mteja au airline.
+5. Ticket Register ina filter za tarehe, tawi (DAR/UNGUJA) na sarafu (TZS/USD).
+6. Vitufe vya Edit, Refund na Delete vimeboreshwa kwa muonekano wa kisasa.
+7. Kila ukurasa una nembo na jina la kampuni juu; kitufe cha Print Ukurasa kipo kwenye kila ukurasa.
+8. Orodha zinapochapishwa huongezewa namba mfululizo kwenye mstari wa kwanza wa kila rekodi.
+9. Mfumo wa awali, database na hesabu zake zimeachwa kama zilivyokuwa; mabadiliko haya yameongezwa juu yake.
+
+MUHIMU: Fanya backup ya database yako (hawaii_travel_erp.db) kabla ya kuanza kutumia toleo hili.
+
+MAREKEBISHO YA ZIADA V5.3.1
+- Excel ya DAR na UNGUJA sasa ina safu tofauti za HAWAII WORKING CLIENT S/FEE USD na TZS.
+- Imeongezwa HAWAII CORPORATE S/FEE USD na TZS kwa kila tawi, pamoja na muhtasari wa faida wa CORPORATE.
+- Mpangilio wa Tafuta Tiketi, Futa Filter, Print na Excel umewekwa katika mistari tofauti ili visibanane.
+- Orodha ya tiketi inapochapishwa ina namba mfululizo kwenye safu ya #.
+- Footer ya uchapishaji imeondolewa; sehemu ya chini inaonyesha namba ya ukurasa pekee pale print engine inapounga mkono page counters za CSS.
+
+MAREKEBISHO YA ZIADA – EXCEL SERVICE FEE
+- Profit Summary sasa inaonyesha jina kamili la HAWAII WORKING CLIENT S/FEE.
+- CORPORATE imepewa jina kamili la HAWAII CORPORATE S/FEE.
+- USD na TZS zimepangwa kwa mpangilio mmoja kwa kila aina ya mteja.
+- Vichwa vya Profit Summary vimepanuliwa/kupunguzwa fonti kiotomatiki ili visibanane wala kuvunja TZS kwenda mstari wa chini.
+- Hesabu za faida na mgawanyo wa sarafu hazijabadilishwa; mabadiliko haya ni ya muonekano wa Excel.
+
+MAREKEBISHO YA MUONEKANO WA EXCEL – V5.3.3
+- Profit Summary sasa ina vichwa vya makundi kwenye mstari wa juu: HAWAII WORKING CLIENT S/FEE, HAWAII CORPORATE S/FEE, NON-IATA S/FEE na TOTAL PROFIT.
+- USD na TZS zimeshushwa kwenye mstari wa pili chini ya kila kundi, kama mfano uliotumwa.
+- Safu za USD na TZS zimepewa upana unaolingana kwa kila kundi.
+- Mpangilio na ukubwa wa vichwa vya DAR na UNGUJA unatumia muundo mmoja.
+- Mabadiliko haya ni ya muonekano wa Excel pekee; fomula za jumla na hesabu za faida hazijabadilishwa.

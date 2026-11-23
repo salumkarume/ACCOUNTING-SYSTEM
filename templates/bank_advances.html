@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="topbar"><h1>02A. Ufuatiliaji wa Pesa Zilizotolewa Benki</h1><span class="badge b-blue">Bank Advances Control</span></div>
+<div class="grid-4">
+  <div class="card"><div class="stat-label">TZS Bado Hazijarejeshwa</div><div class="stat-val" style="color:#dc2626;">TZS {{ "{:,.2f}".format(outstanding.TZS) }}</div></div>
+  <div class="card"><div class="stat-label">USD Bado Hazijarejeshwa</div><div class="stat-val" style="color:#dc2626;">USD {{ "{:,.2f}".format(outstanding.USD) }}</div></div>
+  <div class="card"><div class="stat-label">Idadi ya Waliokopa</div><div class="stat-val">{{ advances|length }}</div><div class="stat-sub">Rekodi za pesa zilizotolewa</div></div>
+</div>
+<div class="card">
+<h3>Rekodi Pesa Inayotolewa Benki kwa Mfanyakazi / Tawi</h3>
+<p class="muted">Kila rekodi itatoa fedha kwenye Bank Balance moja kwa moja na kuweka jina la aliyechukua ili deni lifuatiliwe.</p>
+<form method="POST" class="form-grid">
+<input type="hidden" name="action" value="add_advance">
+<div><label>Tarehe</label><input type="date" name="advance_date" value="{{ today }}" required></div>
+<div><label>Tawi</label><select name="branch" required><option value="DAR">DAR</option><option value="UNGUJA">ZANZIBAR</option><option value="HQ">HQ / BOSS</option></select></div>
+<div><label>Sarafu</label><select name="currency"><option>TZS</option><option>USD</option></select></div>
+<div><label>Kiasi kilichotolewa</label><input type="number" name="amount" step="0.01" min="0.01" required></div>
+<div><label>Jina la aliyechukua pesa</label><input name="taken_by" placeholder="Jina kamili" required></div>
+<div><label>Sababu / Matumizi</label><input name="purpose" placeholder="Mfano: nauli, matumizi ya ofisi" required></div>
+<div><label>Bank Reference</label><input name="reference"></div>
+<div><button type="submit">Hifadhi Pesa Iliyotolewa</button></div>
+</form></div>
+<div class="card"><h3>Watu Wenye Pesa za Kampuni / Salio Bado</h3>
+<table><thead><tr><th>Tarehe</th><th>Tawi</th><th>Aliyechukua</th><th>Sababu</th><th>Bank Ref</th><th>Kiasi</th><th>Amerejesha</th><th>Bado Anadaiwa</th><th>Marejesho</th><th>Vitendo</th></tr></thead><tbody>
+{% for a in advances %}<tr><td>{{ a.advance_date }}</td><td>{{ 'ZANZIBAR' if a.branch == 'UNGUJA' else a.branch }}</td><td><strong>{{ a.taken_by }}</strong></td><td>{{ a.purpose }}</td><td>{{ a.reference or '-' }}</td><td>{{ a.currency }} {{ "{:,.2f}".format(a.amount) }}</td><td>{{ a.currency }} {{ "{:,.2f}".format(a.repaid) }}</td><td style="color:{{ '#dc2626' if a.outstanding > 0 else '#16a34a' }};"><strong>{{ a.currency }} {{ "{:,.2f}".format(a.outstanding) }}</strong></td><td>
+{% if a.outstanding > 0 %}<form method="POST" class="form-grid" style="min-width:300px;grid-template-columns:1fr 1fr;"><input type="hidden" name="action" value="repay_advance"><input type="hidden" name="advance_id" value="{{ a.id }}"><div><label>Tarehe</label><input type="date" name="repayment_date" value="{{ today }}" required></div><div><label>Kiasi</label><input type="number" name="amount" step="0.01" min="0.01" max="{{ a.outstanding }}" required></div><div><label>Pesa imepokelewa</label><select name="received_into"><option value="BANK">Bank</option><option value="CASH">Cash ya Tawi</option></select></div><div><label>Reference</label><input name="reference"></div><div style="grid-column:1/-1"><input name="notes" placeholder="Maelezo ya marejesho"><button type="submit">Rekodi Marejesho</button></div></form>{% else %}<span class="badge b-green">Imelipwa yote</span>{% endif %}</td><td>
+<details class="advance-edit"><summary class="btn btn-sm" style="display:inline-block;cursor:pointer;background:#e0f2fe;color:#075985;padding:8px 13px;border-radius:10px;font-weight:700;">Edit</summary>
+<form method="POST" class="form-grid" style="min-width:280px;grid-template-columns:1fr;gap:8px;margin-top:10px;">
+<input type="hidden" name="action" value="edit_advance"><input type="hidden" name="advance_id" value="{{ a.id }}">
+<div><label>Tarehe</label><input type="date" name="advance_date" value="{{ a.advance_date }}" required></div>
+<div><label>Kiasi kilichotolewa ({{ a.currency }})</label><input type="number" name="amount" step="0.01" min="{{ a.repaid if a.repaid > 0 else 0.01 }}" value="{{ '%.2f'|format(a.amount) }}" required></div>
+<div><label>Aliyechukua</label><input name="taken_by" value="{{ a.taken_by }}" required></div>
+<div><label>Sababu / Matumizi</label><input name="purpose" value="{{ a.purpose }}"></div>
+<div><label>Bank Reference</label><input name="reference" value="{{ a.reference or '' }}"></div>
+<div><button type="submit" onclick="return confirm('Unathibitisha kuhifadhi marekebisho ya rekodi hii?');">Hifadhi Mabadiliko</button></div>
+</form></details></td></tr>
+{% else %}<tr><td colspan="10">Hakuna pesa zilizotolewa bado.</td></tr>{% endfor %}
+</tbody></table></div>
+<div class="card"><h3>Marejesho ya Hivi Karibuni</h3><table><thead><tr><th>Tarehe</th><th>Aliyerudisha</th><th>Sarafu</th><th>Kiasi</th><th>Pokelewa kwenye</th><th>Reference</th><th>Aliyeingiza</th></tr></thead><tbody>{% for r in repayments %}<tr><td>{{ r.repayment_date }}</td><td>{{ r.taken_by }}</td><td>{{ r.currency }}</td><td>{{ "{:,.2f}".format(r.amount) }}</td><td>{{ r.received_into }}</td><td>{{ r.reference or '-' }}</td><td>{{ r.created_by }}</td></tr>{% else %}<tr><td colspan="7">Hakuna marejesho yaliyorekodiwa.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

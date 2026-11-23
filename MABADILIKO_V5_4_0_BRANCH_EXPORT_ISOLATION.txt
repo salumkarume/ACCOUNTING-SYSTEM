@@ -1,0 +1,7 @@
+HAWAII ERP V5.4.0 – MAREKEBISHO YA EXCEL KWA MATAWI
+
+- Excel ya DAR sasa ina tiketi za DAR pekee kwenye Ticket Register na sheet ya Ticket Details.
+- Excel ya UNGUJA sasa ina tiketi za UNGUJA pekee kwenye Ticket Register na sheet ya Ticket Details.
+- Hakuna tena fallback ya kuonyesha tiketi za tawi jingine pale tawi lililochaguliwa likiwa halina tiketi.
+- Profit Summary ya ripoti ya DAR bado inaonyesha DAR, UNGUJA na jumla ya kampuni; taarifa za tiketi kwenye sheets zinabaki za tawi lililochaguliwa.
+- Database haijabadilishwa.

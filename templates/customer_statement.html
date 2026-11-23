@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="topbar no-print" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+  <h1>Customer Statement</h1>
+  <div><button type="button" class="btn-accent" onclick="window.print()">🖨️ Print / Save PDF</button>
+  <a class="btn-sm" href="{{ url_for('customer_accounts') }}">Rudi kwa Wateja</a></div>
+</div>
+<div class="card statement-paper">
+  <div style="text-align:center;border-bottom:2px solid #123;padding-bottom:12px;margin-bottom:16px;">
+    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Hawaii Logo" style="max-height:72px;max-width:180px;object-fit:contain;">
+    <h2>HAWAII TRAVEL AGENCY COMPANY LIMITED</h2>
+    <div>IATA Accredited Travel & Tour Agency • DAR & ZANZIBAR</div>
+    <h3>TAARIFA YA AKAUNTI YA MTEJA / CUSTOMER STATEMENT</h3>
+  </div>
+  <div class="grid-2">
+    <div><strong>Mteja:</strong> {{ customer.name }}<br><strong>Aina:</strong> {{ customer.category }}<br><strong>Tawi:</strong> {{ 'ZANZIBAR' if customer.branch == 'UNGUJA' else customer.branch }}</div>
+    <div><strong>Simu:</strong> {{ customer.phone or 'N/A' }}<br><strong>Email:</strong> {{ customer.email or 'N/A' }}<br><strong>Tarehe ya Ripoti:</strong> {{ generated_on }}</div>
+  </div>
+  <h3>Muhtasari wa Salio / Outstanding Balance</h3>
+  <table><thead><tr><th>Sarafu</th><th class="num">Deni la Awali</th><th class="num">Salio la Sasa</th></tr></thead><tbody>
+    <tr><td>TZS</td><td class="num">{{ "{:,.2f}".format(debt.opening_tzs) }}</td><td class="num"><strong>{{ "{:,.2f}".format(debt.tzs) }}</strong></td></tr>
+    <tr><td>USD</td><td class="num">{{ "{:,.2f}".format(debt.opening_usd) }}</td><td class="num"><strong>{{ "{:,.2f}".format(debt.usd) }}</strong></td></tr>
+  </tbody></table>
+  <h3>Historia ya Tiketi / Ticket History</h3>
+  <table><thead><tr><th>Tarehe</th><th>Ticket No.</th><th>Airline</th><th>Route</th><th>Sarafu</th><th class="num">Selling</th><th class="num">Paid</th><th class="num">Balance</th><th>Status</th></tr></thead><tbody>
+  {% for t in tickets %}<tr><td>{{ t.ticket_date }}</td><td>{{ t.ticket_number }}</td><td>{{ t.airline }}</td><td>{{ t.route }}</td><td>{{ t.currency }}</td><td class="num">{{ "{:,.2f}".format(t.total_selling) }}</td><td class="num">{{ "{:,.2f}".format(t.amount_paid) }}</td><td class="num">{{ "{:,.2f}".format(t.balance) }}</td><td>{{ t.payment_status }}</td></tr>{% else %}<tr><td colspan="9">Hakuna tiketi zilizorekodiwa.</td></tr>{% endfor %}
+  </tbody></table>
+  <h3>Historia ya Malipo / Payment History</h3>
+  <table><thead><tr><th>Tarehe</th><th>Ticket No.</th><th>Njia</th><th>Reference</th><th>Sarafu</th><th class="num">Kiasi</th></tr></thead><tbody>
+  {% for p in payments %}<tr><td>{{ p.payment_date }}</td><td>{{ p.ticket_number or 'Auto / Opening Debt' }}</td><td>{{ p.payment_method }}</td><td>{{ p.reference or '' }}</td><td>{{ p.currency }}</td><td class="num">{{ "{:,.2f}".format(p.amount) }}</td></tr>{% else %}<tr><td colspan="6">Hakuna malipo yaliyorekodiwa.</td></tr>{% endfor %}
+  </tbody></table>
+  <p style="margin-top:28px;font-size:12px;">Imetengenezwa na: {{ current_user }} • Hati hii imetolewa na mfumo wa Hawaii Travel Agency ERP.</p>
+</div>
+<style>
+@media print { .sidebar,.nav-back-bar,.no-print,#flash-container{display:none!important}.main{margin:0!important;padding:0!important}.statement-paper{border:0!important;box-shadow:none!important}.card{break-inside:avoid}body{background:#fff!important}table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #888!important;padding:5px!important;color:#111!important}.grid-2{display:grid;grid-template-columns:1fr 1fr} }
+</style>
+{% endblock %}
