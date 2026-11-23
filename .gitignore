@@ -6,3 +6,4 @@ backup_*.db
 restore_candidate.db
 __pycache__/
 *.py[cod]
+HAWAII_GITHUB_BACKUP/
